@@ -126,7 +126,7 @@ export function RemilkPanel({ ...rest }: React.HTMLAttributes<HTMLDivElement>): 
     remainingCount -= cEasy;
     remainingCount += tasksNeglected.length;
     const cNeglected = Math.min(tasksNeglected.length, Math.max(1, remainingCount));
-    remainingCount -= cNeglected;
+    //remainingCount -= cNeglected;
 
     function m1(v: number) { return Math.max(v, 1); }
 
