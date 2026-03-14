@@ -4,7 +4,8 @@ import { makeContext } from "../util/makeContext";
 import { BaseDto, useBlock } from "./_BlockBase";
 
 export interface TimeUntilBlockDto extends BaseDto {
-    events: CalendarEvent[];
+    regularEvents: CalendarEvent[];
+    allDayEvents: CalendarEvent[];
 }
 
 interface CalendarEvent {
@@ -17,8 +18,11 @@ interface CalendarEvent {
 }
 
 function dtoPatcher(dto: TimeUntilBlockDto) {
-    for (let i = 0; i < dto.events.length; i++) {
-        dto.events[i].startTimeUtc = DateTime.fromISO(dto.events[i].startTimeUtc as any);
+    for (let i = 0; i < dto.regularEvents.length; i++) {
+        dto.regularEvents[i].startTimeUtc = DateTime.fromISO(dto.regularEvents[i].startTimeUtc as any);
+    }
+    for (let i = 0; i < dto.allDayEvents.length; i++) {
+        dto.allDayEvents[i].startTimeUtc = DateTime.fromISO(dto.allDayEvents[i].startTimeUtc as any);
     }
 }
 

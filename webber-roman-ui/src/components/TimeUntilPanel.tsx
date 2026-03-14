@@ -85,7 +85,7 @@ export function TimeUntilPanel({ ...rest }: React.HTMLAttributes<HTMLDivElement>
     let prevGroup = "";
     return <BlockPanelContainer state={calendar} {...rest}>
         {!!calendar.dto && <CalContentDiv>
-            {calendar.dto.events.map(e => {
+            {[...calendar.dto.regularEvents].concat(calendar.dto.allDayEvents).sort((a, b) => a.startTimeUtc.toMillis() - b.startTimeUtc.toMillis()).map(e => {
                 const curGroup = e.startTimeUtc < endOfToday ? "today" : e.startTimeUtc < endOfTomorrow ? "tomorrow" : "rest";
                 const newGroup = prevGroup != "" && prevGroup != curGroup;
                 prevGroup = curGroup;
