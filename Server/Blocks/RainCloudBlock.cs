@@ -23,39 +23,55 @@ class RainCloudBlockServer : SimpleBlockServerBase<RainCloudBlockDto>
     private MetOfficeMapsService _metoffice;
     private Dictionary<string, RainCloudPtDto> _havePoints = new();
     private BlockingCollection<string> _pngsToCompress = new();
+    private ILogger _logger;
 
-    private Dictionary<SKColor, int> _cRain = new()
+    private static int mapRain(SKColor c)
     {
-        [new SKColor(0x00000000)] = 0,
-        [new SKColor(0xff0000fe)] = 1,
-        [new SKColor(0xff3265fe)] = 2,
-        [new SKColor(0xff0cbcfe)] = 3,
-        [new SKColor(0xff00a300)] = 4,
-        [new SKColor(0xfffecb00)] = 5,
-        [new SKColor(0xfffe9800)] = 6,
-        [new SKColor(0xfffe0000)] = 7,
-        [new SKColor(0xffb30000)] = 8,
-    };
-    private Dictionary<SKColor, int> _cCloud = new()
+        return (uint)c switch
+        {
+            0x00000000 => 0,
+            0xff0000fe => 1,
+            0xff3265fe => 2,
+            0xff0cbcfe => 3,
+            0xff00a300 => 4,
+            0xfffecb00 => 5,
+            0xfffe9800 => 6,
+            0xfffe0000 => 7,
+            0xffb30000 => 8,
+            _ => -1,
+        };
+    }
+    private static int mapCloud(SKColor c)
     {
-        [new SKColor(0x00000000)] = 0,
-        [new SKColor(0x20efefef)] = 1,
-        [new SKColor(0x40efefef)] = 2,
-        [new SKColor(0x60efefef)] = 3,
-        [new SKColor(0x80ececec)] = 4,
-        [new SKColor(0xa0ececec)] = 5,
-        [new SKColor(0xc0ededed)] = 6, // 177
-        [new SKColor(0xe0eeeeee)] = 7, // 208
-        [new SKColor(0xefededed)] = 8, // 221
-        [new SKColor(0xf0ededed)] = 8, // 222
-    };
+        var alpha = ((uint)c) >> 24; // there are only 8 distinct values of alpha now, apart from occasional random noise dots that can have any alpha
+        return alpha switch
+        {
+            0x00 => 0,
+            0x20 => 1,
+            0x40 => 2,
+            0x60 => 3,
+            0x80 => 5,
+            0xA0 => 6,
+            0xC0 => 7,
+            0xE0 => 8,
+            _ => -1,
+        };
+    }
 
     public RainCloudBlockServer(IServiceProvider sp, RainCloudBlockConfig config)
         : base(sp, TimeSpan.FromMinutes(5))
     {
         _config = config;
         _metoffice = new MetOfficeMapsService();
-        new Thread(pngCompressThread) { IsBackground = true }.Start();
+        _logger = sp.GetRequiredService<ILogger<RainCloudBlockServer>>();
+        if (_config.DumpImagesPath != null)
+        {
+            new Thread(pngCompressThread) { IsBackground = true }.Start();
+            var queue = Path.Combine(_config.DumpImagesPath, "queue.txt");
+            if (File.Exists(queue))
+                foreach (var png in File.ReadAllLines(queue))
+                    _pngsToCompress.Add(png);
+        }
     }
 
     public override void Start()
@@ -80,8 +96,8 @@ class RainCloudBlockServer : SimpleBlockServerBase<RainCloudBlockDto>
 
         var dto = new RainCloudBlockDto { ValidUntilUtc = DateTime.UtcNow + TimeSpan.FromMinutes(30) };
         var maxPast = rainPast.Max(r => r.Time);
-        dto.Rain = rainPast.Select(p => GetPt(p, newPoints, _cRain, false)).Concat(rainFore.Where(r => r.Time > maxPast).Select(p => GetPt(p, newPoints, _cRain, true))).ToArray();
-        dto.Cloud = cloudFore.Select(p => GetPt(p, newPoints, _cCloud, true)).ToArray();
+        dto.Rain = rainPast.Select(p => GetPt(p, newPoints, mapRain, false)).Concat(rainFore.Where(r => r.Time > maxPast).Select(p => GetPt(p, newPoints, mapRain, true))).ToArray();
+        dto.Cloud = cloudFore.Select(p => GetPt(p, newPoints, mapCloud, true)).ToArray();
 
         _havePoints = newPoints;
         if (_config.CachePath != null)
@@ -90,57 +106,56 @@ class RainCloudBlockServer : SimpleBlockServerBase<RainCloudBlockDto>
         return dto;
     }
 
-    private RainCloudPtDto GetPt(MetOfficeMapsService.Timestep ts, Dictionary<string, RainCloudPtDto> newPoints, Dictionary<SKColor, int> colormap, bool isForecast)
+    private RainCloudPtDto GetPt(MetOfficeMapsService.Timestep ts, Dictionary<string, RainCloudPtDto> newPoints, Func<SKColor, int> map, bool isForecast)
     {
-        RainCloudPtDto result;
-
         if (_havePoints.ContainsKey(ts.Url))
-            result = _havePoints[ts.Url];
-        else
-        {
-            result = new RainCloudPtDto { AtUtc = ts.Time, Counts = null, IsForecast = isForecast };
-            // download and decode bitmap
-            SKBitmap bmp = null;
-            try
-            {
-                var bytes = _metoffice.DownloadImage(ts).GetAwaiter().GetResult();
-                Thread.Sleep(200);
-                bmp = SKBitmap.Decode(bytes);
-                if (_config.DumpImagesPath != null)
-                    if (ts.ModelName == "rainfall_radar" || ts.ModelName == "total_precipitation_rate")
-                    {
-                        var pngname = Path.Combine(_config.DumpImagesPath, $@"{ts.Time:yyyy-MM-dd'T'HH'.'mm}--{(isForecast ? $"fc--{(ts.Time - ts.ModelRun).TotalMinutes:0000}" : "ob")}.png");
-                        File.WriteAllBytes(pngname, bytes);
-                        _pngsToCompress.Add(pngname);
-                    }
-            }
-            catch { } // download and decode can fail for various benign reasons; expect and ignore this, we'll retry later
+            return newPoints[ts.Url] = _havePoints[ts.Url];
 
-            // count forecast pixels - errors here should propagate so that we know about them
-            if (bmp != null)
-                result.Counts = GetCounts(bmp, _config.LocationX, _config.LocationY, colormap);
+        var result = new RainCloudPtDto { AtUtc = ts.Time, Counts = null, IsForecast = isForecast };
+        // download and decode bitmap
+        SKBitmap bmp;
+        try
+        {
+            var bytes = _metoffice.DownloadImage(ts).GetAwaiter().GetResult();
+            bmp = SKBitmap.Decode(bytes);
+            if (_config.DumpImagesPath != null)
+                if (ts.ModelName == "rainfall_radar" || ts.ModelName == "total_precipitation_rate")
+                {
+                    var pngname = Path.Combine(_config.DumpImagesPath, $@"{ts.Time:yyyy-MM-dd'T'HH'.'mm}--{(isForecast ? $"fc--{(ts.Time - ts.ModelRun).TotalMinutes:0000}" : "ob")}.png");
+                    _logger.LogInformation($"Downloaded {pngname} from {ts.Url} because it wasn't in cache");
+                    File.WriteAllBytes(pngname, bytes);
+                    _pngsToCompress.Add(pngname);
+                }
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, $"Download failed for {ts.ModelName} ({ts.Url})");
+            // don't save to newPoints - will cause download to retry on next tick
+            return result;
         }
 
-        if (result.Counts != null) // cache only successful results so that we retry failures on next refresh
-            newPoints[ts.Url] = result;
+        result.Counts = GetCounts(bmp, _config.LocationX, _config.LocationY, map);
+        if (result.Counts.Sum() < 6)
+        {
+            _logger.LogWarning($"GetCounts: only {result.Counts.Sum()} valid pixels for {ts.ModelName} ({ts.Url})");
+            result.Counts = null;
+        }
+
+        newPoints[ts.Url] = result; // don't retry this download again
         return result;
     }
 
-    public static int[] GetCounts(SKBitmap bmp, double locX, double locY, Dictionary<SKColor, int> colormap)
+    private static int[] GetCounts(SKBitmap bmp, double locX, double locY, Func<SKColor, int> map)
     {
         int x = (int)Math.Round(bmp.Width * locX);
         int y = (int)Math.Round(bmp.Height * locY);
-        var counts = new int[colormap.Values.Max() + 1];
+        var counts = new int[9];
         for (int cy = y - 1; cy <= y + 1; cy++)
             for (int cx = x - 1; cx <= x + 1; cx++)
             {
-                var clr = bmp.GetPixel(cx, cy);
-                var best = colormap
-                    .Select(m => (m, diff: Math.Abs(m.Key.Alpha - clr.Alpha) + Math.Abs(m.Key.Red - clr.Red) + Math.Abs(m.Key.Green - clr.Green) + Math.Abs(m.Key.Blue - clr.Blue)))
-                    .MinElement(el => el.diff);
-                if (best.diff > 8)
-                    throw new Exception("best.diff > 8");
-                counts[best.m.Value]++;
+                var val = map(bmp.GetPixel(cx, cy));
+                if (val >= 0)
+                    counts[val]++;
             }
         return counts;
     }
@@ -156,6 +171,7 @@ class RainCloudBlockServer : SimpleBlockServerBase<RainCloudBlockDto>
             oxi.Start();
             oxi.PriorityClass = ProcessPriorityClass.Idle;
             oxi.WaitForExit();
+            File.WriteAllLines(Path.Combine(_config.DumpImagesPath, "queue.txt"), _pngsToCompress);
             Thread.Sleep(1000);
         }
     }
