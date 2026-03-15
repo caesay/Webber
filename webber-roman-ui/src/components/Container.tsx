@@ -78,7 +78,7 @@ export function makeState(s: { status?: BlockConnectionStatus, updates?: number,
         status: s.status ?? "connected",
         updates: s.updates ?? 0,
         dto: {
-            validUntilUtc: s.validUntilUtc ?? Temporal.Now.instant().add({ days: 365.25 * 10 }),
+            validUntilUtc: s.validUntilUtc ?? Temporal.Now.instant().add({ hours: 24 * 365 * 10 }),
         },
     };
 }

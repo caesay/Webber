@@ -1,7 +1,7 @@
 import styled from "styled-components";
 import { RouterHistoryPoint, useRouterBlock } from "../blocks/RouterBlock";
-import { BlockPanelBorderedContainer, BlockPanelContainer } from "./Container";
 import { BarChart, BarChartPt, ScaleY } from "./BarChart";
+import { BlockPanelBorderedContainer, BlockPanelContainer } from "./Container";
 
 const RouterBoxDiv = styled(BlockPanelBorderedContainer)`
     display: flex;
@@ -34,7 +34,7 @@ function getPt(val: number | undefined, max: number, c1: string, c2: string, c3:
 }
 
 function getTxPt(pt: RouterHistoryPoint | null) {
-    return getPt(pt?.txRate, 2_900_000, "#05305c", "#0959aa", "#1985f3", "#64adf7");
+    return getPt(pt?.txRate, 3_250_000, "#05305c", "#0959aa", "#1985f3", "#64adf7");
 }
 function getRxPt(pt: RouterHistoryPoint | null) {
     return getPt(pt?.rxRate, 26_000_000, "#573805", "#966008", "#ed980d", "#f6bb5a");

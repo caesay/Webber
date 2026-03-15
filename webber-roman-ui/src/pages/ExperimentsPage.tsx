@@ -81,7 +81,7 @@ function SunTimes(props: React.HTMLAttributes<HTMLDivElement>): React.ReactNode 
     const weather = useWeatherBlock();
     if (!weather.dto)
         return <SunTimesDiv {...props} />;
-    const sunsetDelta = weather.dto.sunsetUtc.until(weather.dto.sunset2Utc).total("minutes");
+    const sunsetDelta = weather.dto.sunsetUtc.until(weather.dto.sunset2Utc).total("minutes") - 1440;
     return <SunTimesDiv {...props}>
         <div><FontAwesomeIcon icon={faSun} color="#ff0" /> {timeHHmm(zonedHere(weather.dto.sunriseUtc))}</div>
         <div><FontAwesomeIcon icon={faMoon} color="#4479ff" /> {timeHHmm(zonedHere(weather.dto.sunsetUtc))}</div>

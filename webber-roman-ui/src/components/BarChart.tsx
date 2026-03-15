@@ -15,7 +15,8 @@ export function ModifiedLog(value: number, newBase: number): number {
 
 export function ScaleY(value: number, min: number, max: number, transform: (v: number) => number): number {
     if (transform == null) transform = x => x;
-    return (transform(value) - transform(min)) / (transform(max) - transform(min));
+    const res = (transform(value) - transform(min)) / (transform(max) - transform(min));
+    return res < 0 ? 0 : res > 1 ? 1 : res;
 }
 
 
