@@ -103,12 +103,12 @@ class WeatherForecastBlockServer : SimpleBlockServerBase<WeatherForecastBlockDto
 
     private WeatherForecastDayDto GetDayForecast(JObject json)
     {
-        var localDate = (string)json["localDate"] ?? string.Empty;
-        var minTempC = (int?)json["minTempC"] ?? 0;
-        var maxTempC = (int?)json["maxTempC"] ?? 0;
-        var precipitationProbability = (int?)json["precipitationProbabilityInPercent"] ?? 0;
-        var windSpeedMph = (int?)json["windSpeedMph"] ?? 0;
-        var gustSpeedMph = (int?)json["gustSpeedMph"] ?? 0;
+        var localDate = (string)json["localDate"] ?? "";
+        var minTempC = (int?)json["minTempC"] ?? -99;
+        var maxTempC = (int?)json["maxTempC"] ?? -99;
+        var precipitationProbability = (int?)json["precipitationProbabilityInPercent"] ?? -99;
+        var windSpeedMph = (int?)json["windSpeedMph"] ?? -99;
+        var gustSpeedMph = (int?)json["gustSpeedMph"] ?? -99;
         var weatherType = (int?)json["weatherType"] ?? 0;
 
         var result = new WeatherForecastDayDto
