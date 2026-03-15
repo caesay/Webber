@@ -1,7 +1,6 @@
 import { Dialog } from "@ariakit/react";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { DateTime } from "luxon";
 import { Fragment, useState } from "react";
 import styled from "styled-components";
 import { Holiday, holidays } from "../holidays";
@@ -53,10 +52,11 @@ export function BirthdaysOverlay(props: { state: BirthdaysOverlayState }): React
 
     let bdays = holidays.filter(h => !!h.annual && !h.isHoliday) as Annual[];
     bdays = bdays.sort((a, b) => (a.annual.month * 100 + a.annual.day) - (b.annual.month * 100 + b.annual.day));
-    const now = DateTime.utc();
+    const now = Temporal.Now.plainDateISO();
 
     function age(year: number, month: number, day: number): number {
-        const years = now.diff(DateTime.fromObject({ year, month, day }), "years").years;
+        const birthDate = Temporal.PlainDate.from({ year, month, day });
+        const years = birthDate.until(now).total({ unit: "year", relativeTo: birthDate });
         const frac = years - Math.floor(years);
         return frac > 0.9 ? (Math.floor(years) + 0.9) : years; // ensure it shows as X.9 before the birthday
     }

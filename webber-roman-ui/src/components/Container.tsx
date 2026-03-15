@@ -1,4 +1,3 @@
-import { DateTime } from "luxon";
 import { useEffect, useState } from "react";
 import styled from "styled-components";
 import { BlockConnectionStatus, BlockState } from "../blocks/_BlockBase";
@@ -51,7 +50,7 @@ export function BlockPanelContainer({ state, children, ...rest }: BlockPanelProp
         if (!state.dto) {
             setValid("empty");
         } else {
-            const validForMs = state.dto.validUntilUtc.diffNow().as("milliseconds");
+            const validForMs = Temporal.Now.instant().until(state.dto.validUntilUtc).total("milliseconds");
             setValid(validForMs > 0 ? "valid" : "invalid");
             const timer = setTimeout(() => setValid("invalid"), validForMs);
             return () => clearTimeout(timer);
@@ -74,12 +73,12 @@ export const BlockPanelBorderedContainer = styled(BlockPanelContainer)`
     background: #111;
 `;
 
-export function makeState(s: { status?: BlockConnectionStatus, updates?: number, validUntilUtc?: DateTime }) {
+export function makeState(s: { status?: BlockConnectionStatus, updates?: number, validUntilUtc?: Temporal.Instant }) {
     return {
         status: s.status ?? "connected",
         updates: s.updates ?? 0,
         dto: {
-            validUntilUtc: s.validUntilUtc ?? DateTime.now().plus({ years: 10 }),
+            validUntilUtc: s.validUntilUtc ?? Temporal.Now.instant().add({ days: 365.25 * 10 }),
         },
     };
 }
@@ -97,6 +96,6 @@ export function joinState(s1: BlockState, s2: BlockState): BlockState {
         if (!result.dto)
             result.dto = { validUntilUtc: s2.dto.validUntilUtc };
         else
-            result.dto.validUntilUtc = result.dto.validUntilUtc < s2.dto.validUntilUtc ? result.dto.validUntilUtc : s2.dto.validUntilUtc;
+            result.dto.validUntilUtc = Temporal.Instant.compare(result.dto.validUntilUtc, s2.dto.validUntilUtc) < 0 ? result.dto.validUntilUtc : s2.dto.validUntilUtc;
     return result;
 }

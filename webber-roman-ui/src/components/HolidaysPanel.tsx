@@ -1,8 +1,7 @@
-import { DateTime } from "luxon";
 import styled from "styled-components";
 import { HolidayInstance, holidays } from "../holidays";
 import { useTime } from "../util/useTime";
-import { startOfLocalDay } from "../util/util";
+import { localDay } from "../util/util";
 import { BirthdaysOverlay, useBirthdaysOverlayState } from "./BirthdaysOverlay";
 
 interface Holiday2 extends HolidayInstance {
@@ -39,8 +38,8 @@ function HolidayRow(p: { holiday: Holiday2 }): React.ReactNode {
         clr = "#666";
     }
     return <>
-        <Rdiv fw={fw} c={clr}>{h.date.setLocale("en-US").toFormat("d")}</Rdiv>
-        <Ldiv fw={fw} c={clr} style={{ marginLeft: "-0.65rem" }}>{h.date.setLocale("en-US").toFormat("MMM")}</Ldiv>
+        <Rdiv fw={fw} c={clr}>{h.date.toLocaleString("en-GB", { day: "numeric" })}</Rdiv>
+        <Ldiv fw={fw} c={clr} style={{ marginLeft: "-0.65rem" }}>{h.date.toLocaleString("en-US" /*for "Sep"*/, { month: "short" })}</Ldiv>
         {leftDiv}
         <Ldiv fw={fw} c={clr}>{h.description}</Ldiv>
     </>;
@@ -50,10 +49,10 @@ export function HolidaysPanel({ ...rest }: React.HTMLAttributes<HTMLDivElement>)
     useTime(); // refresh every minute - a little much but not worth fixing
     const overlayState = useBirthdaysOverlayState();
 
-    const startOfToday = startOfLocalDay(DateTime.utc(), true);
-    const from = DateTime.utc().plus({ days: -30 });
-    const hols = holidays.map(h => h.next(from)).filter(h => !!h).sort((a, b) => a.date.toMillis() - b.date.toMillis())
-        .map(h => ({ ...h, daysUntil: Math.ceil(h.date.diff(startOfToday, "days").days) }));
+    const today = localDay(Temporal.Now.instant());
+    const from = today.subtract({ days: 30 });
+    const hols = holidays.map(h => h.next(from)).filter(h => !!h).sort((a, b) => Temporal.PlainDate.compare(a.date, b.date))
+        .map(h => ({ ...h, daysUntil: Math.ceil(today.until(h.date).total("days")) }));
 
     return <>
         <HolidaysDiv {...rest} onClick={overlayState.show}>

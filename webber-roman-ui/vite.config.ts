@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react"
 export default defineConfig({
     plugins: [react()],
     build: {
+        chunkSizeWarningLimit: 515,
         rollupOptions: {
             input: {
                 app: fileURLToPath(new URL("./index.html", import.meta.url)),

@@ -1,4 +1,3 @@
-import { DateTime } from "luxon";
 import { Config } from "../config";
 import { makeContext } from "../util/makeContext";
 import { BaseDto, useBlock } from "./_BlockBase";
@@ -9,7 +8,7 @@ export interface WeatherForecastBlockDto extends BaseDto {
 }
 
 export interface WeatherForecastDayDto {
-    date: DateTime;
+    date: Temporal.PlainDate; // local date
     tempMinC: number;
     tempMaxC: number;
     rainProbability: number;
@@ -20,7 +19,7 @@ export interface WeatherForecastDayDto {
 }
 
 export interface WeatherForecastHourDto {
-    dateTime: DateTime;
+    dateTime: Temporal.PlainDateTime; // local date/time, which means can have duplicates or missing hours during DST changes
     rainProbability: number;
 }
 
@@ -52,10 +51,10 @@ export type WeatherForecastKindDte =
 
 function dtoPatcher(dto: WeatherForecastBlockDto) {
     for (let i = 0; i < dto.days.length; i++) {
-        dto.days[i].date = DateTime.fromISO(dto.days[i].date as any);
+        dto.days[i].date = Temporal.PlainDate.from(dto.days[i].date as any);
     }
     for (let k = 0; k < dto.hours.length; k++) {
-        dto.hours[k].dateTime = DateTime.fromISO(dto.hours[k].dateTime as any);
+        dto.hours[k].dateTime = Temporal.PlainDateTime.from(dto.hours[k].dateTime as any);
     }
 }
 

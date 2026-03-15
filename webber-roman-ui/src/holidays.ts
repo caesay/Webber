@@ -1,13 +1,11 @@
-import { DateTime } from "luxon";
-
 export interface HolidayInstance {
-    date: DateTime;
+    date: Temporal.PlainDate;
     description: string;
     holiday: Holiday;
 }
 
 export interface Holiday {
-    next: (from: DateTime) => HolidayInstance | null;
+    next: (from: Temporal.PlainDate) => HolidayInstance | null;
     annual?: { day: number; month: number };
     year?: number;
     description: string;
@@ -31,9 +29,9 @@ function annual(day: number, month: number, description: string, priorityDays: n
         pastDays: 0,
     };
     holiday.next = (from) => {
-        let date = DateTime.fromObject({ year: from.year, month, day });
-        if (date.toMillis() < from.toMillis())
-            date = DateTime.fromObject({ year: from.year + 1, month, day });
+        let date = Temporal.PlainDate.from({ year: from.year, month, day });
+        if (Temporal.PlainDate.compare(date, from) < 0)
+            date = Temporal.PlainDate.from({ year: from.year + 1, month, day });
         return { date, description, holiday };
     };
     return holiday;
@@ -67,9 +65,9 @@ function list(description: string, priorityDays: number, interestDays: number, d
         priorityDays,
         pastDays: 0,
     };
-    const pdates = dates.map(d => DateTime.fromFormat(d, "dd/MM/yyyy"));
+    const pdates = dates.map(d => Temporal.PlainDate.from(d));
     holiday.next = (from) => {
-        const nexts = pdates.filter(pd => pd.diff(from, "days").days >= 0);
+        const nexts = pdates.filter(pd => pd.since(from).total("days") >= 0);
         if (nexts.length === 0)
             return null;
         return { date: nexts[0], description, holiday };
@@ -82,9 +80,9 @@ export const holidays: Holiday[] = [
     holiday(annual(25, 12, "Christmas", 30, 90)),
     holiday(annual(31, 12, "Новый Год", 30, 90)),
 
-    holiday(list("Good Friday", 15, 40, ["18/04/2025", "03/04/2026", "26/03/2027", "14/04/2028", "30/03/2029", "19/04/2030"])),
-    holiday(list("Easter Monday", 15, 40, ["21/04/2025", "06/04/2026", "29/03/2027", "17/04/2028", "02/04/2029", "22/04/2030"])),
-    holiday(list("Early May BH", 15, 40, ["05/05/2025", "04/05/2026", "03/05/2027", "01/05/2028", "07/05/2029", "06/05/2030"])),
-    holiday(list("Spring BH", 15, 40, ["26/05/2025", "25/05/2026", "31/05/2027", "29/05/2028", "28/05/2029", "27/05/2030"])),
-    holiday(list("Summer BH", 15, 40, ["25/08/2025", "31/08/2026", "30/08/2027", "28/08/2028", "27/08/2029", "26/08/2030"])),
+    holiday(list("Good Friday", 15, 40, ["2025-04-18", "2026-04-03", "2027-03-26", "2028-04-14", "2029-03-30", "2030-04-19"])),
+    holiday(list("Easter Monday", 15, 40, ["2025-04-21", "2026-04-06", "2027-03-29", "2028-04-17", "2029-04-02", "2030-04-22"])),
+    holiday(list("Early May BH", 15, 40, ["2025-05-05", "2026-05-04", "2027-05-03", "2028-05-01", "2029-05-07", "2030-05-06"])),
+    holiday(list("Spring BH", 15, 40, ["2025-05-26", "2026-05-25", "2027-05-31", "2028-05-29", "2029-05-28", "2030-05-27"])),
+    holiday(list("Summer BH", 15, 40, ["2025-08-25", "2026-08-31", "2027-08-30", "2028-08-28", "2029-08-27", "2030-08-26"])),
 ];

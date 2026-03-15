@@ -24,8 +24,8 @@ public record RemilkBlockDto : BaseDto
 public record RemilkTask
 {
     public string Id { get; set; }
+    public DateOnly? DueDate { get; set; }
     public DateTime? DueUtc { get; set; }
-    public bool HasDueTime { get; set; }
     public int Priority { get; set; }
     public string Description { get; set; }
     public string[] Tags { get; set; }
@@ -38,9 +38,15 @@ public record RemilkTask
         var oldest = series.Elements("task").OrderBy(e => e.Attribute("due").Value).First();
         var priority = oldest.Attribute("priority").Value;
         Priority = priority switch { "1" => 1, "2" => 2, "3" => 3, "N" => 4, _ => throw new Exception("unknown priority") };
-        HasDueTime = oldest.Attribute("has_due_time").Value == "1";
+        // task with only a due date has eg due="2026-06-01T23:00:00Z"
         if (oldest.Attribute("due").Value != "")
-            DueUtc = DateTime.Parse(oldest.Attribute("due").Value).ToUniversalTime();
+        {
+            var due = DateTime.Parse(oldest.Attribute("due").Value).ToUniversalTime();
+            if (oldest.Attribute("has_due_time").Value != "1")
+                DueDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(due, TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time")));
+            else
+                DueUtc = due;
+        }
     }
 }
 

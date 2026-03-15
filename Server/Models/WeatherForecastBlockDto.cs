@@ -8,7 +8,7 @@ public record WeatherForecastBlockDto : BaseDto
 
 public record WeatherForecastDayDto
 {
-    public string Date { get; set; }
+    public string Date { get; set; } // local date
     public int TempMinC { get; set; }
     public int TempMaxC { get; set; }
     public int RainProbability { get; set; }
@@ -20,7 +20,7 @@ public record WeatherForecastDayDto
 
 public record WeatherForecastHourDto
 {
-    public DateTime DateTime { get; set; }
+    public DateTime DateTime { get; set; } // local date/time; during DST can have duplicate or missing hours
     public int RainProbability { get; set; }
 }
 

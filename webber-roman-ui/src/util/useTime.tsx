@@ -1,4 +1,3 @@
-import { DateTime } from "luxon";
 import { makeContext } from "./makeContext";
 import { timeCorrectionMs } from "../blocks/_BlockBase";
 import { useEffect, useState } from "react";
@@ -13,9 +12,9 @@ const ctx = makeContext(() => {
             clearTimeout(timer);
         }
     }, []);
-    let time = DateTime.utc().plus({ milliseconds: timeCorrectionMs });
+    let time = Temporal.Now.instant().add({ nanoseconds: Math.round(timeCorrectionMs * 1_000_000) }).toZonedDateTimeISO("UTC");
     if (time.second >= 58) // we schedule the update as close as possible to the minute change; if it triggers slightly before then fast forward it to the next minute
-        time = time.plus({ seconds: 60 - time.second });
+        time = time.add({ seconds: 60 - time.second });
     return { time, updates };
 });
 

@@ -90,10 +90,10 @@ function ForecastDay(p: { dto: WeatherForecastDayDto, mode: "today" | "big" | "s
     const w = useWeatherBlock();
 
     const cellSize = 1.0; // flex size to vary by date
-    const cellBack = p.dto.date.weekday >= 6 ? "#333" : "#181818";
-    const cellBorder = p.dto.date.weekday >= 6 ? "#777" : "#444";
-    const cellMargin = p.dto.date.weekday == 7 ? "2vw" : "0";
-    const headingText = p.mode == "today" ? (p.dto.night ? "Night" : "Today") : weekdays[p.dto.date.weekday];
+    const cellBack = p.dto.date.dayOfWeek >= 6 ? "#333" : "#181818";
+    const cellBorder = p.dto.date.dayOfWeek >= 6 ? "#777" : "#444";
+    const cellMargin = p.dto.date.dayOfWeek == 7 ? "2vw" : "0";
+    const headingText = p.mode == "today" ? (p.dto.night ? "Night" : "Today") : weekdays[p.dto.date.dayOfWeek];
     const rainShowLimit = p.mode == "today" ? 15 : p.mode == "big" ? 20 : 999;
     const rainText = p.dto.rainProbability < rainShowLimit || p.dto.weatherKind == "sun" ? null : (p.dto.rainProbability / 10).toFixed(0);
     const windVal = Math.max(p.dto.windMph, p.dto.gustMph / 2);

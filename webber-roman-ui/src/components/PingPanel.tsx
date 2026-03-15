@@ -23,7 +23,7 @@ export function PingPanel(props: React.HTMLAttributes<HTMLDivElement>): React.Re
     }
 
     return <PingBoxDiv state={ping} {...props}>
-        <div><div style={{ float: "right" }}>{ping.dto.last?.toLocaleString("en-UK", { maximumFractionDigits: 0 }) ?? "∞"} ms</div>Ping</div>
+        <div><div style={{ float: "right" }}>{ping.dto.last?.toLocaleString("en-GB", { maximumFractionDigits: 0 }) ?? "∞"} ms</div>Ping</div>
         <div style={{ padding: "0 0.5vw", borderBottom: "1px solid #999", flex: "1", minHeight: "0" }}>
             <BarChart Data={ping.dto.recent.map(pingToPt)} BarCount={ping.dto.recent.length} />
         </div>
@@ -57,7 +57,7 @@ export function MiniPingPanel(props: React.HTMLAttributes<HTMLDivElement>): Reac
             Color: ping > 200 ? "#ff0000" : ping > 40 ? "#1985f3" : "#08b025",
         };
     }
-    const text = (ping.dto.last?.toLocaleString("en-UK", { maximumFractionDigits: 0 }) ?? "∞") + " ms";
+    const text = (ping.dto.last?.toLocaleString("en-GB", { maximumFractionDigits: 0 }) ?? "∞") + " ms";
 
     return <MiniPingBoxDiv state={ping} {...props}>
         <MiniPingLabelDiv style={{ WebkitTextStroke: "1vw #18181880" }}>{text}</MiniPingLabelDiv>

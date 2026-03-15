@@ -2,6 +2,7 @@ import { faMoon, faSun } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import styled from "styled-components";
 import { useWeatherBlock } from "../blocks/WeatherBlock";
+import { timeHHmm, zonedHere } from "../util/util";
 import { BlockPanelBorderedContainer } from "./Container";
 
 const WeatherBoxDiv = styled(BlockPanelBorderedContainer)`
@@ -19,8 +20,9 @@ export function WeatherPanel(props: React.HTMLAttributes<HTMLDivElement>): React
     if (!weather.dto)
         return <WeatherBoxDiv state={weather} {...props} />;
     function temp2str(temp: number): string {
-        return (temp < 0 ? "–" : "") + Math.abs(temp).toFixed(0);
+        return (temp < 0 ? "−" : "") + Math.abs(temp).toFixed(0);
     }
+    const sunsetDelta = weather.dto.sunsetUtc.until(weather.dto.sunset2Utc).total("minutes") - 1440;
     return <WeatherBoxDiv state={weather} {...props}>
         <div style={{ color: weather.dto.curTemperatureColor, fontSize: "280%", fontWeight: "bold", textAlign: "center", marginTop: "-1.7vw", marginBottom: "0.1vw" }}>{temp2str(weather.dto.curTemperature)} °C</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr repeat(4, min-content) 1fr" }}>
@@ -40,11 +42,11 @@ export function WeatherPanel(props: React.HTMLAttributes<HTMLDivElement>): React
         </div>
         <div></div>
         <div style={{ display: "grid", gridTemplateColumns: "min-content 1fr min-content 1fr min-content", alignItems: "baseline" }}>
-            <div><FontAwesomeIcon icon={faSun} color="#ff0" /> {weather.dto.sunriseTime}</div>
+            <div><FontAwesomeIcon icon={faSun} color="#ff0" /> {timeHHmm(zonedHere(weather.dto.sunriseUtc))}</div>
             <div></div>
-            <div><FontAwesomeIcon icon={faMoon} color="#4479ff" /> {weather.dto.sunsetTime}</div>
+            <div><FontAwesomeIcon icon={faMoon} color="#4479ff" /> {timeHHmm(zonedHere(weather.dto.sunsetUtc))}</div>
             <div></div>
-            <div style={{ fontSize: "80%", color: "#999" }}>{weather.dto.sunsetDeltaTime}</div>
+            <div style={{ fontSize: "80%", color: "#999" }}>{sunsetDelta > 0 ? "+" : "−"}{sunsetDelta.toFixed(1)}m</div>
         </div>
     </WeatherBoxDiv>
 }

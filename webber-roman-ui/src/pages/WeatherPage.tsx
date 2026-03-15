@@ -1,11 +1,12 @@
 import styled from "styled-components";
 import { NavOverlay, useNavOverlayState } from "../components/NavOverlay";
-import { WeatherPanel } from "../components/WeatherPanel";
 import { MiniPingPanel } from "../components/PingPanel";
-import { useTime } from "../util/useTime";
-import { WeatherForecastPanel } from "../components/WeatherForecastPanel";
 import { RainCloudPanel } from "../components/RainCloudPanel";
 import { MiniRouterPanel } from "../components/RouterPanel";
+import { WeatherForecastPanel } from "../components/WeatherForecastPanel";
+import { WeatherPanel } from "../components/WeatherPanel";
+import { useTime } from "../util/useTime";
+import { timeHHmm, zonedHere } from "../util/util";
 
 const ZonesClockDiv = styled.div`
     display: grid;
@@ -22,9 +23,9 @@ const ZoneTime = styled.div`
 function ZonesClock(props: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
     const { time } = useTime();
     return <ZonesClockDiv {...props}>
-        <ZoneName>Ukr</ZoneName><ZoneTime>{time.setZone("Europe/Kiev").toFormat("HH:mm")}</ZoneTime>
-        <ZoneName style={{ fontWeight: "bold" }}>UTC</ZoneName><ZoneTime style={{ fontWeight: "bold" }}>{time.toFormat("HH:mm")}</ZoneTime>
-        <ZoneName>Can</ZoneName><ZoneTime>{time.setZone("Canada/Mountain").toFormat("HH:mm")}</ZoneTime>
+        <ZoneName>Ukr</ZoneName><ZoneTime>{timeHHmm(time.withTimeZone("Europe/Kiev"))}</ZoneTime>
+        <ZoneName style={{ fontWeight: "bold" }}>UTC</ZoneName><ZoneTime style={{ fontWeight: "bold" }}>{timeHHmm(time)}</ZoneTime>
+        <ZoneName>Cal</ZoneName><ZoneTime>{timeHHmm(time.withTimeZone("America/Los_Angeles"))}</ZoneTime>
     </ZonesClockDiv>;
 }
 
@@ -37,7 +38,7 @@ const MainClockDiv = styled.div`
 function MainClock(props: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
     const { time } = useTime();
     return <MainClockDiv {...props}>
-        {time.toLocal().toFormat("HH:mm")}
+        {timeHHmm(zonedHere(time))}
     </MainClockDiv>;
 }
 
@@ -50,7 +51,7 @@ const DateClockDiv = styled.div`
 function DateClock(props: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
     const { time } = useTime();
     return <DateClockDiv {...props}>
-        {time.toFormat("ccc, d LLL")}
+        {time.toLocaleString("en-GB", { weekday: "short" })}, {time.toLocaleString("en-GB", { day: "numeric" })} {time.toLocaleString("en-US" /*for "Sep"*/, { month: "short" })}
     </DateClockDiv>
 }
 

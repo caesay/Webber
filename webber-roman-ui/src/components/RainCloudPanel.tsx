@@ -1,9 +1,9 @@
-import { DateTime } from "luxon";
 import styled from "styled-components";
-import { useWeatherBlock } from "../blocks/WeatherBlock";
 import { RainCloudPtDto, useRainCloudBlock } from "../blocks/RainCloudBlock";
-import { BlockPanelContainer, joinState } from "./Container";
+import { useWeatherBlock } from "../blocks/WeatherBlock";
 import { useWeatherDotComBlock } from "../blocks/WeatherDotComBlock";
+import { ns, zonedHere } from "../util/util";
+import { BlockPanelContainer, joinState } from "./Container";
 
 const RainCloudDiv = styled(BlockPanelContainer)`
     display: grid;
@@ -23,13 +23,13 @@ interface barSample {
     color: string;
 }
 
-function RainChart(p: { from: DateTime }): React.ReactNode {
+function RainChart(p: { from: Temporal.Instant }): React.ReactNode {
     const rb = useRainCloudBlock();
     const wdc = useWeatherDotComBlock();
     const wb = useWeatherBlock();
 
     const hoursTotal = 48;
-    function getX(dt: DateTime): number { return 100 * (dt.diff(p.from)).as("hours") / hoursTotal; }
+    function getX(dt: Temporal.Instant): number { return 100 * p.from.until(dt).total("hours") / hoursTotal; }
 
     const nightColor = "#013"; // #081133
     const dayColor = "#330";
@@ -38,19 +38,15 @@ function RainChart(p: { from: DateTime }): React.ReactNode {
 
     let daynight;
     if (wb.dto) {
-        const sunrise1 = DateTime.fromISO(wb.dto.sunriseTime).set({ year: p.from.year, month: p.from.month, day: p.from.day });
-        const sunset1 = DateTime.fromISO(wb.dto.sunsetTime).set({ year: p.from.year, month: p.from.month, day: p.from.day });
-        const sunrise2 = sunrise1.plus({ day: 1 }); // should get exact times from server...
-        const sunset2 = sunset1.plus({ day: 1 });
         daynight = {
-            nend1: getX(sunrise1.plus({ hours: -1 })),
-            rise1: getX(sunrise1),
-            set1: getX(sunset1),
-            nbeg2: getX(sunset1.plus({ hours: 1 })),
-            nend2: getX(sunrise2.plus({ hours: -1 })),
-            rise2: getX(sunrise2),
-            set2: getX(sunset2),
-            nbeg3: getX(sunset2.plus({ hours: 1 })),
+            nend1: getX(wb.dto.sunriseUtc.add({ hours: -1 })),
+            rise1: getX(wb.dto.sunriseUtc),
+            set1: getX(wb.dto.sunsetUtc),
+            nbeg2: getX(wb.dto.sunsetUtc.add({ hours: 1 })),
+            nend2: getX(wb.dto.sunrise2Utc.add({ hours: -1 })),
+            rise2: getX(wb.dto.sunrise2Utc),
+            set2: getX(wb.dto.sunset2Utc),
+            nbeg3: getX(wb.dto.sunset2Utc.add({ hours: 1 })),
         };
     }
 
@@ -98,8 +94,8 @@ function RainChart(p: { from: DateTime }): React.ReactNode {
         return "#b30000";
     }
 
-    const firstHour = p.from.startOf("hour");
-    const hours = Array.from(Array(hoursTotal + 1), (_, i) => firstHour.plus({ hours: i })).map(h => ({ hour: h.hour, centerX: getX(h) })).filter(h => h.centerX > 0 && h.centerX < 100);
+    const firstHour = zonedHere(p.from).round({ smallestUnit: "hour", roundingMode: "floor" });
+    const hours = Array.from(Array(hoursTotal + 1), (_, i) => firstHour.add({ hours: i })).map(h => ({ hour: h.hour, centerX: getX(h.toInstant()) })).filter(h => h.centerX > 0 && h.centerX < 100);
 
     const textHeight = 15;
     const tickHeight = 11;
@@ -143,7 +139,7 @@ function RainChart(p: { from: DateTime }): React.ReactNode {
         </g>}
 
         {hours.filter(hr => (hr.hour % 2) == 0).map((hr, i) => <svg key={`${i}_tx`} x={(hr.centerX - textHeight / 2) + "%"} y={(100 - textHeight) + "%"} width={textHeight + "%"} height={textHeight + "%"} viewBox="0 0 1 1">
-            <text x="0.5" y="0" fontSize="1" fill="#ccc" textAnchor="middle" dominantBaseline="hanging">{hr.hour.toLocaleString("en-US", { minimumIntegerDigits: 2 })}</text>
+            <text x="0.5" y="0" fontSize="1" fill="#ccc" textAnchor="middle" dominantBaseline="hanging">{hr.hour.toLocaleString("en-GB", { minimumIntegerDigits: 2 })}</text>
         </svg>)}
         {wdc.dto && <g key="clouds" mask="url(#cloudmask)">
             {wdc.dto.hours.map((pt, i) =>
@@ -185,7 +181,7 @@ function RainChart(p: { from: DateTime }): React.ReactNode {
             {rainlines.map((pt, i) => <path key={`k${i}`} stroke={pt.c} strokeWidth="0.3vw" fill="none" d={`M ${pt.xm1} ${pt.ym1} ${pt.x} ${pt.y} ${pt.xp1} ${pt.yp1}`} vectorEffect="non-scaling-stroke" />)}
         </svg>}
 
-        <svg key="marker" x={(getX(DateTime.now()) - markerHeight / 2) + "%"} y={(chartHeight - markerHeight + tickHeight * 0.7 / 2) + "%"} width={markerHeight + "%"} height={markerHeight + "%"} viewBox="-0.1 -0.2 1.2 1.1">
+        <svg key="marker" x={(getX(Temporal.Now.instant()) - markerHeight / 2) + "%"} y={(chartHeight - markerHeight + tickHeight * 0.7 / 2) + "%"} width={markerHeight + "%"} height={markerHeight + "%"} viewBox="-0.1 -0.2 1.2 1.1">
             <path d="M 0 1 .5 0 1 1 z" fill="red" stroke="#000" strokeWidth="0.15" strokeLinejoin="miter" />
         </svg>
     </svg>;
@@ -196,12 +192,11 @@ export function RainCloudPanel(props: React.HTMLAttributes<HTMLDivElement>): Rea
     const wdc = useWeatherDotComBlock();
 
     const startHour = 5;
-    let from = DateTime.now();
-    if (from < from.startOf("day").plus({ hours: startHour }))
-        from = from.plus({ days: -1 });
-    from = from.startOf("day").plus({ hours: startHour });
+    let from = zonedHere(Temporal.Now.plainDateISO().toPlainDateTime({ hour: startHour }));
+    if (ns(Temporal.Now.instant()) < ns(from))
+        from = from.subtract({ days: 1 });
 
     return <RainCloudDiv state={joinState(rb, wdc)} {...props}>
-        <RainChart from={from} />
+        <RainChart from={from.toInstant()} />
     </RainCloudDiv >;
 }

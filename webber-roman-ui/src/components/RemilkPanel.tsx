@@ -1,7 +1,6 @@
-import { DateTime } from "luxon";
 import styled from "styled-components";
 import { RemilkTask, useRemilkBlock } from "../blocks/RemilkBlock";
-import { startOfLocalDay } from "../util/util";
+import { endOfLocalDay, ns, startOfLocalDay, timeHHmm, zonedHere } from "../util/util";
 import { BlockPanelContainer } from "./Container";
 
 const RemilkPanelContainer = styled(BlockPanelContainer)`
@@ -23,11 +22,6 @@ const OverflowFaderDiv = styled.div`
     }
 `;
 
-function TaskToday(p: { task: RemilkTask }): React.ReactNode {
-    const overdue = p.task.dueUtc < DateTime.utc();
-    return <p key={p.task.id}>{overdue && "OVERDUE: "}{p.task.description}</p>
-}
-
 function byPriority(a: RemilkTask, b: RemilkTask): number {
     if (a.priority != b.priority)
         return a.priority - b.priority;
@@ -35,11 +29,20 @@ function byPriority(a: RemilkTask, b: RemilkTask): number {
         return a.description.localeCompare(b.description);
     return a.id.localeCompare(b.id);
 }
+
 function byDueDate(a: RemilkTask, b: RemilkTask): number {
-    const c = a.dueUtc.toMillis() - b.dueUtc.toMillis();
-    if (c != 0)
-        return c;
+    const c = ns(due(a)) - ns(due(b));
+    if (c > 0) return 1;
+    if (c < 0) return -1;
     return a.id.localeCompare(b.id);
+}
+
+function due(task: RemilkTask): Temporal.Instant {
+    if (task.dueUtc)
+        return task.dueUtc;
+    if (task.dueDate)
+        return endOfLocalDay(task.dueDate).toInstant();
+    return endOfLocalDay(Temporal.Now.instant()).toInstant();
 }
 
 const PrioColors = ["", "#EA5200", "#0060BF", "#359AFF", "#555"];
@@ -60,10 +63,10 @@ const DueSpan = styled.span<{ $overdue: boolean }>`
 `;
 
 function Task(p: { task: RemilkTask, nolate?: boolean }): React.ReactNode {
-    const overdue = p.task.dueUtc < DateTime.utc();
+    const overdue = ns(due(p.task)) < ns(Temporal.Now.instant());
     return <TaskDiv style={{ borderLeftColor: PrioColors[p.task.priority] }}>
-        {p.task.hasDueTime && <DueSpan $overdue={overdue}>{p.task.dueUtc.toLocal().toFormat("HH:mm")}</DueSpan>}
-        {!p.task.hasDueTime && overdue && !p.nolate && <DueSpan $overdue={overdue}>late</DueSpan>}
+        {!!p.task.dueUtc && <DueSpan $overdue={overdue}>{timeHHmm(zonedHere(p.task.dueUtc))}</DueSpan>}
+        {!!p.task.dueDate && overdue && !p.nolate && <DueSpan $overdue={overdue}>late</DueSpan>}
         {p.task.description}
     </TaskDiv>;
 }
@@ -91,24 +94,24 @@ export function RemilkPanel({ ...rest }: React.HTMLAttributes<HTMLDivElement>): 
     const remilk = useRemilkBlock();
     const tasks = remilk.dto?.tasks ?? [];
 
-    const cutoffNeglected = startOfLocalDay(DateTime.utc(), true).minus({ day: 5 });
-    const cutoffStartOfToday = startOfLocalDay(DateTime.utc(), true);
-    const cutoffEndOfToday = cutoffStartOfToday.plus({ day: 1 });
-    const cutoffTomorrow = cutoffStartOfToday.plus({ day: 2 });
-    const cutoffSoon = cutoffStartOfToday.plus({ day: 5 });
+    const cutoffNeglected = startOfLocalDay(Temporal.Now.instant()).subtract({ days: 5 });
+    const cutoffStartOfToday = startOfLocalDay(Temporal.Now.instant());
+    const cutoffEndOfToday = cutoffStartOfToday.add({ days: 1 });
+    const cutoffTomorrow = cutoffStartOfToday.add({ days: 2 });
+    const cutoffSoon = cutoffStartOfToday.add({ days: 5 });
 
     function tagFilter(t: RemilkTask) { return !t.tags.includes("easy") && !t.tags.includes("backlog"); }
-    const tasksNeglected = tasks.filter(t => tagFilter(t) && t.dueUtc <= cutoffNeglected).sort(byPriority);
-    const tasksTodayPrio = tasks.filter(t => tagFilter(t) && t.dueUtc > cutoffNeglected && t.dueUtc <= cutoffEndOfToday && t.priority == 1).sort(byPriority);
-    const tasksToday = tasks.filter(t => tagFilter(t) && t.dueUtc > cutoffNeglected && t.dueUtc <= cutoffEndOfToday && t.priority != 1).sort(byPriority);
-    const tasksTomorrow = tasks.filter(t => tagFilter(t) && t.dueUtc > cutoffEndOfToday && t.dueUtc <= cutoffTomorrow).sort(byPriority);
-    const tasksSoon = tasks.filter(t => tagFilter(t) && t.dueUtc > cutoffTomorrow && t.dueUtc <= cutoffSoon).sort(byDueDate);
-    const tasksEasy = tasks.filter(t => t.tags.includes("easy") && t.dueUtc <= cutoffEndOfToday).sort(byPriority);
-    const tasksBacklog = tasks.filter(t => t.tags.includes("backlog") && t.dueUtc <= cutoffEndOfToday).sort(byPriority);
+    const tasksNeglected = tasks.filter(t => tagFilter(t) && ns(due(t)) <= ns(cutoffNeglected)).sort(byPriority);
+    const tasksTodayPrio = tasks.filter(t => tagFilter(t) && ns(due(t)) > ns(cutoffNeglected) && ns(due(t)) <= ns(cutoffEndOfToday) && t.priority == 1).sort(byPriority);
+    const tasksToday = tasks.filter(t => tagFilter(t) && ns(due(t)) > ns(cutoffNeglected) && ns(due(t)) <= ns(cutoffEndOfToday) && t.priority != 1).sort(byPriority);
+    const tasksTomorrow = tasks.filter(t => tagFilter(t) && ns(due(t)) > ns(cutoffEndOfToday) && ns(due(t)) <= ns(cutoffTomorrow)).sort(byPriority);
+    const tasksSoon = tasks.filter(t => tagFilter(t) && ns(due(t)) > ns(cutoffTomorrow) && ns(due(t)) <= ns(cutoffSoon)).sort(byDueDate);
+    const tasksEasy = tasks.filter(t => t.tags.includes("easy") && ns(due(t)) <= ns(cutoffEndOfToday)).sort(byPriority);
+    const tasksBacklog = tasks.filter(t => t.tags.includes("backlog") && ns(due(t)) <= ns(cutoffEndOfToday)).sort(byPriority);
 
-    const dayCount = tasks.filter(t => !t.tags.includes("easy") && t.dueUtc <= cutoffEndOfToday).length;
-    const weekCount = tasks.filter(t => !t.tags.includes("easy") && t.dueUtc <= cutoffEndOfToday.plus({ day: 7 })).length;
-    const monthCount = tasks.filter(t => !t.tags.includes("easy") && t.dueUtc <= cutoffEndOfToday.plus({ day: 31 })).length;
+    const dayCount = tasks.filter(t => !t.tags.includes("easy") && ns(due(t)) <= ns(cutoffEndOfToday)).length;
+    const weekCount = tasks.filter(t => !t.tags.includes("easy") && ns(due(t)) <= ns(cutoffEndOfToday.add({ days: 7 }))).length;
+    const monthCount = tasks.filter(t => !t.tags.includes("easy") && ns(due(t)) <= ns(cutoffEndOfToday.add({ days: 31 }))).length;
 
     // if all tasks don't fit then we collapse sections in the following order: soon, tomorrow, backlog, easy, neglected
     let remainingCount = 12 - tasksEasy.length - tasksTodayPrio.length - tasksToday.length - tasksNeglected.length - tasksBacklog.length - tasksTomorrow.length - tasksSoon.length;
@@ -162,5 +165,5 @@ export function RemilkPanel({ ...rest }: React.HTMLAttributes<HTMLDivElement>): 
         <TaskCountContainerDiv>
             <div>{dayCount} now</div><div>{weekCount} week</div><div>{monthCount} month</div>
         </TaskCountContainerDiv>
-    </RemilkPanelContainer >;
+    </RemilkPanelContainer>;
 }

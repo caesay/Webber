@@ -1,4 +1,3 @@
-import { DateTime } from "luxon";
 import { Config } from "../config";
 import { makeContext } from "../util/makeContext";
 import { BaseDto, useBlock } from "./_BlockBase";
@@ -8,7 +7,7 @@ export interface WeatherDotComBlockDto extends BaseDto {
 }
 
 export interface WeatherDotComForecastHourDto {
-    dateTime: DateTime;
+    dateTime: Temporal.Instant; // utc
     cloudCover: number;
     precipChance: number;
     precipMm: number;
@@ -16,7 +15,7 @@ export interface WeatherDotComForecastHourDto {
 
 function dtoPatcher(dto: WeatherDotComBlockDto) {
     for (let k = 0; k < dto.hours.length; k++) {
-        dto.hours[k].dateTime = DateTime.fromISO(dto.hours[k].dateTime as any);
+        dto.hours[k].dateTime = Temporal.Instant.from(dto.hours[k].dateTime as any);
     }
 }
 

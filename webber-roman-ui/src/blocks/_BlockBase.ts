@@ -1,21 +1,20 @@
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import { useEffect, useState } from "react";
-import { DateTime } from "luxon";
 import { useDebugBlock } from "./DebugBlock";
 
 export type BlockConnectionStatus = "disconnected" | "connecting" | "connected";
 
 export interface BaseDto {
     localOffsetHours: number;
-    sentUtc: DateTime;
-    validUntilUtc: DateTime;
+    sentUtc: Temporal.Instant;
+    validUntilUtc: Temporal.Instant;
     errorMessage: string;
 }
 
 export interface BlockState {
     status: BlockConnectionStatus;
     updates: number;
-    dto: { validUntilUtc: DateTime } | null;
+    dto: { validUntilUtc: Temporal.Instant } | null;
 }
 
 export interface BlockStateDto<TDto extends BaseDto> extends BlockState {
@@ -23,8 +22,8 @@ export interface BlockStateDto<TDto extends BaseDto> extends BlockState {
 }
 
 function basePatcher(dto: BaseDto) {
-    dto.sentUtc = DateTime.fromISO(dto.sentUtc as any);
-    dto.validUntilUtc = DateTime.fromISO(dto.validUntilUtc as any);
+    dto.sentUtc = Temporal.Instant.from(dto.sentUtc as any);
+    dto.validUntilUtc = Temporal.Instant.from(dto.validUntilUtc as any);
 }
 
 const timeDiffs: number[] = [];
@@ -51,7 +50,7 @@ export function useBlock<TDto extends BaseDto>(url: string, patcher: (dto: TDto)
                 patcher(dto);
                 setDto(dto);
                 setUpdates(u => u + 1);
-                timeDiffs.push(dto.sentUtc.diffNow("milliseconds").milliseconds);
+                timeDiffs.push(dto.sentUtc.since(Temporal.Now.instant()).total("milliseconds"));
                 if (timeDiffs.length > 20)
                     timeDiffs.shift();
                 if (timeDiffs.length >= 3)

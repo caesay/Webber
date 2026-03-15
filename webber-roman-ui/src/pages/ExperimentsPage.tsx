@@ -1,10 +1,10 @@
-import { DateTime } from "luxon";
+import { faMoon, faSun } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import styled from "styled-components";
 import { useWeatherBlock } from "../blocks/WeatherBlock";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMoon, faSun } from "@fortawesome/free-solid-svg-icons";
 import { BlockPanelContainer } from "../components/Container";
 import { NavOverlay, useNavOverlayState } from "../components/NavOverlay";
+import { timeHHmm, zonedHere } from "../util/util";
 
 
 const ZonesClockDiv = styled.div`
@@ -21,9 +21,9 @@ const ZoneTime = styled.div`
 
 function ZonesClock(props: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
     return <ZonesClockDiv {...props}>
-        <ZoneName>Ukr</ZoneName><ZoneTime>{DateTime.utc().setZone("Europe/Kiev").toFormat("HH:mm")}</ZoneTime>
-        <ZoneName style={{ fontWeight: "bold" }}>UTC</ZoneName><ZoneTime style={{ fontWeight: "bold" }}>{DateTime.utc().toFormat("HH:mm")}</ZoneTime>
-        <ZoneName>Can</ZoneName><ZoneTime>{DateTime.utc().setZone("Canada/Mountain").toFormat("HH:mm")}</ZoneTime>
+        <ZoneName>Ukr</ZoneName><ZoneTime>{timeHHmm(Temporal.Now.zonedDateTimeISO("Europe/Kiev"))}</ZoneTime>
+        <ZoneName style={{ fontWeight: "bold" }}>UTC</ZoneName><ZoneTime style={{ fontWeight: "bold" }}>{timeHHmm(Temporal.Now.zonedDateTimeISO("UTC"))}</ZoneTime>
+        <ZoneName>Can</ZoneName><ZoneTime>{timeHHmm(Temporal.Now.zonedDateTimeISO("Canada/Mountain"))}</ZoneTime>
     </ZonesClockDiv>;
 }
 
@@ -35,7 +35,7 @@ const MainClockDiv = styled.div`
 
 function MainClock(props: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
     return <MainClockDiv {...props}>
-        {DateTime.local().toFormat("HH:mm")}
+        {timeHHmm(Temporal.Now.zonedDateTimeISO())}
     </MainClockDiv>;
 }
 
@@ -79,10 +79,13 @@ const SunTimesDiv = styled.div`
 
 function SunTimes(props: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
     const weather = useWeatherBlock();
+    if (!weather.dto)
+        return <SunTimesDiv {...props} />;
+    const sunsetDelta = weather.dto.sunsetUtc.until(weather.dto.sunset2Utc).total("minutes");
     return <SunTimesDiv {...props}>
-        <div><FontAwesomeIcon icon={faSun} color="#ff0" /> {weather.dto?.sunriseTime}</div>
-        <div><FontAwesomeIcon icon={faMoon} color="#4479ff" /> {weather.dto?.sunsetTime}</div>
-        <div style={{ fontSize: "80%", color: "#999" }}>{weather.dto?.sunsetDeltaTime}</div>
+        <div><FontAwesomeIcon icon={faSun} color="#ff0" /> {timeHHmm(zonedHere(weather.dto.sunriseUtc))}</div>
+        <div><FontAwesomeIcon icon={faMoon} color="#4479ff" /> {timeHHmm(zonedHere(weather.dto.sunsetUtc))}</div>
+        <div style={{ fontSize: "80%", color: "#999" }}>{sunsetDelta > 0 ? "+" : "−"}{sunsetDelta.toFixed(1)}m</div>
     </SunTimesDiv>
 }
 

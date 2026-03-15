@@ -1,4 +1,3 @@
-import { DateTime } from "luxon";
 import { Config } from "../config";
 import { makeContext } from "../util/makeContext";
 import { BaseDto, useBlock } from "./_BlockBase";
@@ -9,17 +8,17 @@ export interface RainCloudBlockDto extends BaseDto {
 }
 
 export interface RainCloudPtDto {
-    atUtc: DateTime;
+    atUtc: Temporal.Instant;
     counts: number[];
     isForecast: boolean;
 }
 
 function dtoPatcher(dto: RainCloudBlockDto) {
     for (let i = 0; i < dto.rain.length; i++) {
-        dto.rain[i].atUtc = DateTime.fromISO(dto.rain[i].atUtc as any);
+        dto.rain[i].atUtc = Temporal.Instant.from(dto.rain[i].atUtc as any);
     }
     for (let i = 0; i < dto.cloud.length; i++) {
-        dto.cloud[i].atUtc = DateTime.fromISO(dto.cloud[i].atUtc as any);
+        dto.cloud[i].atUtc = Temporal.Instant.from(dto.cloud[i].atUtc as any);
     }
 }
 
