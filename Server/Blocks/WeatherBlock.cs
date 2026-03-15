@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using Dapper;
 using Dapper.Contrib.Extensions;
 using Innovative.SolarCalculator;
@@ -105,6 +105,10 @@ class WeatherBlockServer : SimpleBlockServerBase<WeatherBlockDto>
         dto.SunsetTime = $"{timesToday.Sunset:HH:mm}";
         var sunsetDelta = timesTomorrow.Sunset.AddDays(-1) - timesToday.Sunset;
         dto.SunsetDeltaTime = (sunsetDelta >= TimeSpan.Zero ? "+" : "−") + $"{Math.Abs(sunsetDelta.TotalMinutes):0.0}m";
+        dto.SunriseUtc = timesToday.Sunrise.ToUniversalTime();
+        dto.SunsetUtc = timesToday.Sunset.ToUniversalTime();
+        dto.Sunrise2Utc = timesTomorrow.Sunrise.ToUniversalTime();
+        dto.Sunset2Utc = timesTomorrow.Sunset.ToUniversalTime();
     }
 
     private (DateTime time, decimal temp) findExtreme(List<(DateTime time, decimal temp)> seq, int todayLimit, Func<IEnumerable<(DateTime time, decimal temp)>, (DateTime time, decimal temp)> getExtreme)
