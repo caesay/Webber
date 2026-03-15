@@ -1,5 +1,5 @@
 import { defineConfig } from "vite"
-import { fileURLToPath } from "url"
+import { fileURLToPath } from "node:url"
 import react from "@vitejs/plugin-react"
 
 // https://vitejs.dev/config/
