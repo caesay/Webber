@@ -84,13 +84,13 @@ export function TimeUntilPanel({ ...rest }: React.HTMLAttributes<HTMLDivElement>
     let prevGroup = "";
     return <BlockPanelContainer state={calendar} {...rest}>
         {!!calendar.dto && <CalContentDiv>
-            {[...calendar.dto.regularEvents].concat(calendar.dto.allDayEvents).sort((a, b) => Temporal.Instant.compare(a.startTimeUtc, b.startTimeUtc)).map(e => {
-                const curGroup = ns(e.startTimeUtc) < ns(endOfToday) ? "today" : ns(e.startTimeUtc) < ns(endOfTomorrow) ? "tomorrow" : "rest";
+            {[...calendar.dto.regularEvents].sort((a, b) => Temporal.Instant.compare(a.startTime, b.startTime)).map(e => {
+                const curGroup = ns(e.startTime) < ns(endOfToday) ? "today" : ns(e.startTime) < ns(endOfTomorrow) ? "tomorrow" : "rest";
                 const newGroup = prevGroup != "" && prevGroup != curGroup;
                 prevGroup = curGroup;
 
-                const start = zonedHere(e.startTimeUtc);
-                const left = Temporal.Now.instant().until(e.startTimeUtc);
+                const start = zonedHere(e.startTime);
+                const left = Temporal.Now.instant().until(e.startTime);
                 const totalHours = left.total("hours");
                 const totalMinutes = left.total("minutes");
                 if (totalMinutes < 60)
@@ -98,23 +98,23 @@ export function TimeUntilPanel({ ...rest }: React.HTMLAttributes<HTMLDivElement>
                         <DivMins $newGroup={newGroup}><SpanTime>{timeHHmm(start)}</SpanTime><SpanLeft>{`${Math.floor(totalMinutes).toFixed(0)}min`}</SpanLeft></DivMins>
                         <DivMins $newGroup={newGroup}><SpanDesc>{e.displayName}</SpanDesc></DivMins>
                     </Fragment>;
-                if (ns(e.startTimeUtc) < ns(endOfToday))
+                if (ns(e.startTime) < ns(endOfToday))
                     return <Fragment key={e.id}>
                         <DivHrs $newGroup={newGroup}><SpanTime>{timeHHmm(start)}</SpanTime><SpanLeft>{`${totalHours.toFixed(1)}hr`}</SpanLeft></DivHrs>
                         <DivHrs $newGroup={newGroup}><SpanDesc>{e.displayName}</SpanDesc></DivHrs>
                     </Fragment>;
-                if (ns(e.startTimeUtc) < ns(endOfTomorrow))
+                if (ns(e.startTime) < ns(endOfTomorrow))
                     return <Fragment key={e.id}>
                         <DivTmrw $newGroup={newGroup}><SpanTime>{timeHHmm(start)}</SpanTime><SpanLeft>{`${totalHours.toFixed(1)}hr`}</SpanLeft></DivTmrw>
                         <DivTmrw $newGroup={newGroup}><SpanDesc>{e.displayName}</SpanDesc></DivTmrw>
                     </Fragment>;
-                if (ns(e.startTimeUtc) < ns(endOfToday.add({ days: 7 })))
+                if (ns(e.startTime) < ns(endOfToday.add({ days: 7 })))
                     return <Fragment key={e.id}>
                         <DivWeek $newGroup={newGroup}><SpanTime>{timeHHmm(start)}</SpanTime><SpanLeft>{start.toLocaleString("en-GB", { weekday: "short" })}</SpanLeft></DivWeek>
                         <DivWeek $newGroup={newGroup}><SpanDesc>{e.displayName}</SpanDesc></DivWeek>
                     </Fragment>;
                 return <Fragment key={e.id}>
-                    <DivLong $newGroup={newGroup}><SpanTime>{`${localDay(Temporal.Now.instant()).until(localDay(e.startTimeUtc)).total("days")} days`}</SpanTime></DivLong>
+                    <DivLong $newGroup={newGroup}><SpanTime>{`${localDay(Temporal.Now.instant()).until(localDay(e.startTime)).total("days")} days`}</SpanTime></DivLong>
                     <DivLong $newGroup={newGroup}><SpanDesc>{e.displayName}</SpanDesc></DivLong>
                 </Fragment>;
             })}
