@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useReloadBlock } from "./blocks/ReloadBlock";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ErrorToast } from "./components/ErrorToast";
 import { ClassicPage } from "./pages/ClassicPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExperimentsPage } from "./pages/ExperimentsPage";
@@ -29,12 +31,17 @@ export function App(): React.ReactNode {
     }, [reload.dto?.serverHash]);
 
     return (
-        <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/classic" element={<ClassicPage />} />
-            <Route path="/weather" element={<WeatherPage />} />
-            <Route path="/experiments" element={<ExperimentsPage />} />
-            <Route path="*" element={<p>Page Not Found</p>} />
-        </Routes>
+        <>
+            <ErrorBoundary>
+                <Routes>
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/classic" element={<ClassicPage />} />
+                    <Route path="/weather" element={<WeatherPage />} />
+                    <Route path="/experiments" element={<ExperimentsPage />} />
+                    <Route path="*" element={<p>Page Not Found</p>} />
+                </Routes>
+            </ErrorBoundary>
+            <ErrorToast />
+        </>
     );
 }

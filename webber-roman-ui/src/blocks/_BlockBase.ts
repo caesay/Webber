@@ -1,5 +1,6 @@
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import { useEffect, useState } from "react";
+import { reportError } from "../util/errorBus";
 import { useDebugBlock } from "./DebugBlock";
 
 export type BlockConnectionStatus = "disconnected" | "connecting" | "connected";
@@ -56,9 +57,9 @@ export function useBlock<TDto extends BaseDto>(url: string, patcher: (dto: TDto)
                 if (timeDiffs.length >= 3)
                     timeCorrectionMs = timeDiffs.reduce(function (a, b) { return a + b; }, 0) / timeDiffs.length;
                 if (dto.errorMessage)
-                    console.error(url + ": " + dto.errorMessage);
+                    reportError(dto.errorMessage);
             } catch (e) {
-                console.error(e); // otherwise SignalR just swallows it and pretends everything is fine, thanks for wasting my time SignalR
+                reportError(e); // otherwise SignalR just swallows it and pretends everything is fine, thanks for wasting my time SignalR
             }
         });
         conn.onreconnecting(() => { setStatus("connecting"); dbg("on reconnecting"); });
