@@ -140,6 +140,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
             currentOffset += windowSize; // Shift the window forward
         }
 
+        _log.LogDebug($"Fetched {allEvents.Count} events.");
         return allEvents;
     }
 
