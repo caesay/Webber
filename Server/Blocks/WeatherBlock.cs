@@ -124,7 +124,7 @@ class WeatherBlockServer : SimpleBlockServerBase<WeatherBlockDto>
             return result;
     }
 
-    private static (double mean, double stdev) getTemperatureDeviation(DateTime tempTime, TimeSpan range, List<(DateTime time, decimal temp)> avg)
+    internal static (double mean, double stdev) getTemperatureDeviation(DateTime tempTime, TimeSpan range, List<(DateTime time, decimal temp)> avg)
     {
         var center = tempTime.ToLocalTime().AddDays(-1);
         var prevTempsAtSameTime = avg.Take(0).ToList(); // empty list of same type
@@ -147,7 +147,7 @@ class WeatherBlockServer : SimpleBlockServerBase<WeatherBlockDto>
             return (double.NaN, double.NaN);
     }
 
-    private static string getTemperatureColor(decimal temp, (double mean, double stdev) p)
+    internal static string getTemperatureColor(decimal temp, (double mean, double stdev) p)
     {
         int blend(int c1, int c2, double pos) => (int)Math.Round(c1 * pos + c2 * (1 - pos));
         ValueTuple<int, int, int> blend3(ValueTuple<int, int, int> c1, ValueTuple<int, int, int> c2, double pos) => (blend(c1.Item1, c2.Item1, pos), blend(c1.Item2, c2.Item2, pos), blend(c1.Item3, c2.Item3, pos));
@@ -180,7 +180,7 @@ class WeatherBlockServer : SimpleBlockServerBase<WeatherBlockDto>
         });
     }
 
-    class TbWeatherTemperature
+    internal class TbWeatherTemperature
     {
         [ExplicitKey]
         public long Timestamp { get; set; }

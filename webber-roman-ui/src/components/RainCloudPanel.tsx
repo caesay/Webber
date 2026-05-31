@@ -118,10 +118,11 @@ function RainChart(p: { from: Temporal.Instant }): React.ReactNode {
         x: getX(h.dateTime) + 0.5 * 100 / hoursTotal,
         xp1: getX(h.dateTime) + 100 / hoursTotal,
         tempC: h.tempC,
+        c: h.tempCColor ?? "#fff",
         y: 0, ym1: 0, yp1: 0,
     }));
-    let tempMinPt: { x: number; y: number; tempC: number } | undefined;
-    let tempMaxPt: { x: number; y: number; tempC: number } | undefined;
+    let tempMinPt: { x: number; y: number; tempC: number; c: string } | undefined;
+    let tempMaxPt: { x: number; y: number; tempC: number; c: string } | undefined;
     if (templines) {
         templines = templines.filter(h => h.xm1 >= 0 && h.xp1 <= 100);
         if (templines.length > 0) {
@@ -145,7 +146,8 @@ function RainChart(p: { from: Temporal.Instant }): React.ReactNode {
                     } else i++;
                 }
                 if (bestStart < 0) return undefined;
-                return { x: (templines![bestStart].x + templines![bestEnd].x) / 2, y: templines![bestStart].y, tempC: target };
+                const mid = Math.floor((bestStart + bestEnd) / 2);
+                return { x: (templines![bestStart].x + templines![bestEnd].x) / 2, y: templines![bestStart].y, tempC: target, c: templines![mid].c };
             };
             tempMinPt = longestRun(tempMin);
             tempMaxPt = longestRun(tempMax);
@@ -221,14 +223,14 @@ function RainChart(p: { from: Temporal.Instant }): React.ReactNode {
         </svg>}
 
         {templines && <svg key="tpch" x="0" y="0" width="100%" height={chartHeight + "%"} viewBox="0 0 100 100" preserveAspectRatio="none">
-            {templines.map((pt, i) => <path key={`tk${i}`} stroke="#000" strokeWidth="0.4vw" fill="none" d={`M ${pt.xm1} ${pt.ym1} ${pt.x} ${pt.y} ${pt.xp1} ${pt.yp1}`} vectorEffect="non-scaling-stroke" />)}
-            {templines.map((pt, i) => <path key={`tk${i}`} stroke="#ddd" strokeWidth="0.15vw" fill="none" d={`M ${pt.xm1} ${pt.ym1} ${pt.x} ${pt.y} ${pt.xp1} ${pt.yp1}`} vectorEffect="non-scaling-stroke" />)}
+            {templines.map((pt, i) => <path key={`tk${i}`} stroke="#000" strokeWidth="0.5vw" fill="none" d={`M ${pt.xm1} ${pt.ym1} ${pt.x} ${pt.y} ${pt.xp1} ${pt.yp1}`} vectorEffect="non-scaling-stroke" />)}
+            {templines.map((pt, i) => <path key={`tk${i}`} stroke={pt.c} strokeWidth="0.2vw" fill="none" d={`M ${pt.xm1} ${pt.ym1} ${pt.x} ${pt.y} ${pt.xp1} ${pt.yp1}`} vectorEffect="non-scaling-stroke" />)}
         </svg>}
         {tempMinPt && <svg key="tmin" x={(tempMinPt.x - textHeight / 2) + "%"} y={((chartHeight / 100) * tempMinPt.y - textHeight) + "%"} width={textHeight + "%"} height={textHeight + "%"} viewBox="0 0 1 1">
-            <text x="0.5" y="0.85" fontSize="1" fill="#fff" stroke="#000" strokeWidth="0.3vw" paintOrder="stroke" vectorEffect="non-scaling-stroke" textAnchor="middle" dominantBaseline="auto">{tempMinPt.tempC.toString()}</text>
+            <text x="0.5" y="0.85" fontSize="1" fontWeight="bold" fill={tempMinPt.c} stroke="#000" strokeWidth="0.3vw" paintOrder="stroke" vectorEffect="non-scaling-stroke" textAnchor="middle" dominantBaseline="auto">{tempMinPt.tempC.toString()}</text>
         </svg>}
         {tempMaxPt && <svg key="tmax" x={(tempMaxPt.x - textHeight / 2) + "%"} y={((chartHeight / 100) * tempMaxPt.y) + "%"} width={textHeight + "%"} height={textHeight + "%"} viewBox="0 0 1 1">
-            <text x="0.5" y="0" fontSize="1" fill="#fff" stroke="#000" strokeWidth="0.3vw" paintOrder="stroke" vectorEffect="non-scaling-stroke" textAnchor="middle" dominantBaseline="hanging">{tempMaxPt.tempC.toString()}</text>
+            <text x="0.5" y="0" fontSize="1" fontWeight="bold" fill={tempMaxPt.c} stroke="#000" strokeWidth="0.3vw" paintOrder="stroke" vectorEffect="non-scaling-stroke" textAnchor="middle" dominantBaseline="hanging">{tempMaxPt.tempC.toString()}</text>
         </svg>}
 
         <svg key="marker" x={(getX(Temporal.Now.instant()) - markerHeight / 2) + "%"} y={(chartHeight - markerHeight + tickHeight * 0.7 / 2) + "%"} width={markerHeight + "%"} height={markerHeight + "%"} viewBox="-0.1 -0.2 1.2 1.1">

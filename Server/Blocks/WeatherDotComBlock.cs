@@ -1,5 +1,6 @@
 ﻿using System.IO.Compression;
 using System.Text.RegularExpressions;
+using Dapper;
 using Newtonsoft.Json.Linq;
 using RT.Util.ExtensionMethods;
 using Webber.Client.Models;
@@ -18,12 +19,14 @@ class WeatherDotComBlockConfig
 class WeatherDotComBlockServer : SimpleBlockServerBase<WeatherDotComBlockDto>
 {
     private WeatherDotComBlockConfig _config;
+    private IDbService _db;
     private Dictionary<DateTime, WeatherDotComForecastHourDto> _recentHourly = new();
     private HttpClient _hc = new();
 
-    public WeatherDotComBlockServer(IServiceProvider sp, WeatherDotComBlockConfig config) : base(sp, 0)
+    public WeatherDotComBlockServer(IServiceProvider sp, WeatherDotComBlockConfig config, IDbService db) : base(sp, 0)
     {
         _config = config;
+        _db = db;
     }
 
     private string LocStr => $"{_config.Latitude:0.########},{_config.Longitude:0.########}";
@@ -53,7 +56,31 @@ class WeatherDotComBlockServer : SimpleBlockServerBase<WeatherDotComBlockDto>
         AddForecast(json);
         _recentHourly.RemoveAllByKey(k => k < DateTime.UtcNow.AddHours(-24));
         var hours = _recentHourly.Values.OrderBy(h => h.DateTime).ToArray();
+        ColorHours(hours);
         return new WeatherDotComBlockDto { Hours = hours, ValidUntilUtc = DateTime.UtcNow.AddMinutes(90) };
+    }
+
+    private void ColorHours(WeatherDotComForecastHourDto[] hours)
+    {
+        if (!_db.Enabled)
+            return;
+        Dictionary<DateTime, decimal> temperatures;
+        using (var conn = _db.OpenConnection())
+        {
+            temperatures = conn.Query<WeatherBlockServer.TbWeatherTemperature>(
+                $@"SELECT * FROM {nameof(WeatherBlockServer.TbWeatherTemperature)} WHERE {nameof(WeatherBlockServer.TbWeatherTemperature.Timestamp)} > @limit",
+                new { limit = DateTime.UtcNow.AddDays(-8).ToDbDateTime() }
+            ).ToDictionary(r => r.Timestamp.FromDbDateTime(), r => (decimal)r.Temperature);
+        }
+        if (temperatures.Count == 0)
+            return;
+        var temps = temperatures.OrderBy(kvp => kvp.Key).ToList();
+        var avg = temps.Select(kvp => (time: kvp.Key, temp: temps.Where(x => x.Key >= kvp.Key.AddMinutes(-7.5) && x.Key <= kvp.Key.AddMinutes(7.5)).Average(x => x.Value))).ToList();
+        foreach (var h in hours)
+        {
+            var dev = WeatherBlockServer.getTemperatureDeviation(h.DateTime.ToLocalTime(), TimeSpan.FromHours(1), avg);
+            h.TempCColor = WeatherBlockServer.getTemperatureColor(h.TempC, dev);
+        }
     }
 
     protected override void SleepUntilNextTick(DateTime tickStartUtc)
