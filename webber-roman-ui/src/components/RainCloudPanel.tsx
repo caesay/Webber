@@ -113,6 +113,45 @@ function RainChart(p: { from: Temporal.Instant }): React.ReactNode {
         rainlines = rainlines.filter(h => h.xm1 >= 0 && h.xp1 <= 100);
     }
 
+    let templines = wdc.dto && wdc.dto.hours.map(h => ({
+        xm1: getX(h.dateTime),
+        x: getX(h.dateTime) + 0.5 * 100 / hoursTotal,
+        xp1: getX(h.dateTime) + 100 / hoursTotal,
+        tempC: h.tempC,
+        y: 0, ym1: 0, yp1: 0,
+    }));
+    let tempMinPt: { x: number; y: number; tempC: number } | undefined;
+    let tempMaxPt: { x: number; y: number; tempC: number } | undefined;
+    if (templines) {
+        templines = templines.filter(h => h.xm1 >= 0 && h.xp1 <= 100);
+        if (templines.length > 0) {
+            const tempMin = Math.min(...templines.map(h => h.tempC));
+            const tempMax = Math.max(...templines.map(h => h.tempC));
+            const range = tempMax - tempMin || 1;
+            const pad = 5;
+            for (const h of templines) h.y = (100 - pad) - (100 - 2 * pad) * (h.tempC - tempMin) / range;
+            for (let i = 0; i < templines.length; i++) {
+                templines[i].ym1 = i > 0 ? (templines[i].y + templines[i - 1].y) / 2 : templines[i].y;
+                templines[i].yp1 = i < templines.length - 1 ? (templines[i].y + templines[i + 1].y) / 2 : templines[i].y;
+            }
+            const longestRun = (target: number) => {
+                let bestStart = -1, bestEnd = -1, bestLen = 0;
+                for (let i = 0; i < templines!.length;) {
+                    if (templines![i].tempC === target) {
+                        let j = i;
+                        while (j + 1 < templines!.length && templines![j + 1].tempC === target) j++;
+                        if (j - i + 1 > bestLen) { bestLen = j - i + 1; bestStart = i; bestEnd = j; }
+                        i = j + 1;
+                    } else i++;
+                }
+                if (bestStart < 0) return undefined;
+                return { x: (templines![bestStart].x + templines![bestEnd].x) / 2, y: templines![bestStart].y, tempC: target };
+            };
+            tempMinPt = longestRun(tempMin);
+            tempMaxPt = longestRun(tempMax);
+        }
+    }
+
     return <svg width="100%" height="100%">
         <linearGradient id="lighttime" key="lighttime" x1="0" x2="0" y1="0" y2="1"><stop key="1" offset="0%" stopColor="#fff" /><stop key="2" offset="100%" stopColor="#000" /></linearGradient>
         <mask id="lightmask" key="lightmask">
@@ -179,6 +218,17 @@ function RainChart(p: { from: Temporal.Instant }): React.ReactNode {
 
         {rainlines && <svg key="rpch" x="0" y="0" width="100%" height={chartHeight + "%"} viewBox="0 0 100 100" preserveAspectRatio="none">
             {rainlines.map((pt, i) => <path key={`k${i}`} stroke={pt.c} strokeWidth="0.3vw" fill="none" d={`M ${pt.xm1} ${pt.ym1} ${pt.x} ${pt.y} ${pt.xp1} ${pt.yp1}`} vectorEffect="non-scaling-stroke" />)}
+        </svg>}
+
+        {templines && <svg key="tpch" x="0" y="0" width="100%" height={chartHeight + "%"} viewBox="0 0 100 100" preserveAspectRatio="none">
+            {templines.map((pt, i) => <path key={`tk${i}`} stroke="#000" strokeWidth="0.4vw" fill="none" d={`M ${pt.xm1} ${pt.ym1} ${pt.x} ${pt.y} ${pt.xp1} ${pt.yp1}`} vectorEffect="non-scaling-stroke" />)}
+            {templines.map((pt, i) => <path key={`tk${i}`} stroke="#ddd" strokeWidth="0.15vw" fill="none" d={`M ${pt.xm1} ${pt.ym1} ${pt.x} ${pt.y} ${pt.xp1} ${pt.yp1}`} vectorEffect="non-scaling-stroke" />)}
+        </svg>}
+        {tempMinPt && <svg key="tmin" x={(tempMinPt.x - textHeight / 2) + "%"} y={((chartHeight / 100) * tempMinPt.y - textHeight) + "%"} width={textHeight + "%"} height={textHeight + "%"} viewBox="0 0 1 1">
+            <text x="0.5" y="0.85" fontSize="1" fill="#fff" stroke="#000" strokeWidth="0.3vw" paintOrder="stroke" vectorEffect="non-scaling-stroke" textAnchor="middle" dominantBaseline="auto">{tempMinPt.tempC.toString()}</text>
+        </svg>}
+        {tempMaxPt && <svg key="tmax" x={(tempMaxPt.x - textHeight / 2) + "%"} y={((chartHeight / 100) * tempMaxPt.y) + "%"} width={textHeight + "%"} height={textHeight + "%"} viewBox="0 0 1 1">
+            <text x="0.5" y="0" fontSize="1" fill="#fff" stroke="#000" strokeWidth="0.3vw" paintOrder="stroke" vectorEffect="non-scaling-stroke" textAnchor="middle" dominantBaseline="hanging">{tempMaxPt.tempC.toString()}</text>
         </svg>}
 
         <svg key="marker" x={(getX(Temporal.Now.instant()) - markerHeight / 2) + "%"} y={(chartHeight - markerHeight + tickHeight * 0.7 / 2) + "%"} width={markerHeight + "%"} height={markerHeight + "%"} viewBox="-0.1 -0.2 1.2 1.1">

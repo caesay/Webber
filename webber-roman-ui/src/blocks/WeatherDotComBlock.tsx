@@ -11,6 +11,7 @@ export interface WeatherDotComForecastHourDto {
     cloudCover: number;
     precipChance: number;
     precipMm: number;
+    tempC: number;
 }
 
 function dtoPatcher(dto: WeatherDotComBlockDto) {

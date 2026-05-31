@@ -11,4 +11,5 @@ public record WeatherDotComForecastHourDto
     public int CloudCover { get; set; } // 0..100
     public int PrecipChance { get; set; } // 0..100
     public double PrecipMm { get; set; } // melted mm if snow
+    public int TempC { get; set; }
 }

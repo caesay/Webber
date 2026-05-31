@@ -88,6 +88,7 @@ class WeatherDotComBlockServer : SimpleBlockServerBase<WeatherDotComBlockDto>
         var cloudCover = (JArray)json["cloudCover"];
         var precipChance = (JArray)json["precipChance"];
         var precipMm = (JArray)json["qpf"];
+        var temperature = (JArray)json["temperature"];
 
         for (int i = 0; i < times.Count; i++)
         {
@@ -96,6 +97,7 @@ class WeatherDotComBlockServer : SimpleBlockServerBase<WeatherDotComBlockDto>
             hour.CloudCover = cloudCover[i].Value<int>();
             hour.PrecipChance = precipChance[i].Value<int>();
             hour.PrecipMm = precipMm[i].Value<double>();
+            hour.TempC = temperature[i].Value<int>();
             _recentHourly[hour.DateTime] = hour;
         }
     }
