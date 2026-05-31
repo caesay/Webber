@@ -9,29 +9,29 @@
     "lint": "pnpm install && eslint ."
   },
   "dependencies": {
-    "@ariakit/react": "^0.4.23",
+    "@ariakit/react": "^0.4.26",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
-    "@fortawesome/react-fontawesome": "^3.2.0",
+    "@fortawesome/react-fontawesome": "^3.3.1",
     "@microsoft/signalr": "^10.0.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-is": "^19.2.4",
-    "react-router-dom": "^7.13.1",
-    "styled-components": "^6.3.11"
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-is": "^19.2.6",
+    "react-router-dom": "^7.15.1",
+    "styled-components": "^6.4.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/styled-components": "^5.1.36",
-    "@typescript-eslint/parser": "^8.57.0",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.0.3",
+    "@typescript-eslint/parser": "^8.59.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^10.4.0",
     "eslint-plugin-react": "^7.37.5",
-    "globals": "^17.4.0",
-    "typescript": "6.0.1-rc",
-    "typescript-eslint": "^8.57.0",
-    "vite": "^8.0.0"
+    "globals": "^17.6.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.59.3",
+    "vite": "^8.0.13"
   }
 }

@@ -15,10 +15,10 @@ export interface RainCloudPtDto {
 
 function dtoPatcher(dto: RainCloudBlockDto) {
     for (let i = 0; i < dto.rain.length; i++) {
-        dto.rain[i].atUtc = Temporal.Instant.from(dto.rain[i].atUtc as any);
+        dto.rain[i].atUtc = Temporal.Instant.from(dto.rain[i].atUtc);
     }
     for (let i = 0; i < dto.cloud.length; i++) {
-        dto.cloud[i].atUtc = Temporal.Instant.from(dto.cloud[i].atUtc as any);
+        dto.cloud[i].atUtc = Temporal.Instant.from(dto.cloud[i].atUtc);
     }
 }
 

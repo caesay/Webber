@@ -51,10 +51,10 @@ export type WeatherForecastKindDte =
 
 function dtoPatcher(dto: WeatherForecastBlockDto) {
     for (let i = 0; i < dto.days.length; i++) {
-        dto.days[i].date = Temporal.PlainDate.from(dto.days[i].date as any);
+        dto.days[i].date = Temporal.PlainDate.from(dto.days[i].date);
     }
     for (let k = 0; k < dto.hours.length; k++) {
-        dto.hours[k].dateTime = Temporal.PlainDateTime.from(dto.hours[k].dateTime as any);
+        dto.hours[k].dateTime = Temporal.PlainDateTime.from(dto.hours[k].dateTime);
     }
 }
 

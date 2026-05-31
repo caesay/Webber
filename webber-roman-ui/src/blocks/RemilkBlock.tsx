@@ -19,9 +19,9 @@ function dtoPatcher(dto: RemilkBlockDto) {
     for (let i = 0; i < dto.tasks.length; i++) {
         const task = dto.tasks[i];
         if (task.dueDate)
-            task.dueDate = Temporal.PlainDate.from(task.dueDate as any);
+            task.dueDate = Temporal.PlainDate.from(task.dueDate);
         if (task.dueUtc)
-            task.dueUtc = Temporal.Instant.from(task.dueUtc as any);
+            task.dueUtc = Temporal.Instant.from(task.dueUtc);
     }
 }
 

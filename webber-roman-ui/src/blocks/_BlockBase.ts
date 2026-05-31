@@ -23,8 +23,8 @@ export interface BlockStateDto<TDto extends BaseDto> extends BlockState {
 }
 
 function basePatcher(dto: BaseDto) {
-    dto.sentUtc = Temporal.Instant.from(dto.sentUtc as any);
-    dto.validUntilUtc = Temporal.Instant.from(dto.validUntilUtc as any);
+    dto.sentUtc = Temporal.Instant.from(dto.sentUtc);
+    dto.validUntilUtc = Temporal.Instant.from(dto.validUntilUtc);
 }
 
 const timeDiffs: number[] = [];

@@ -15,7 +15,7 @@ export interface WeatherDotComForecastHourDto {
 
 function dtoPatcher(dto: WeatherDotComBlockDto) {
     for (let k = 0; k < dto.hours.length; k++) {
-        dto.hours[k].dateTime = Temporal.Instant.from(dto.hours[k].dateTime as any);
+        dto.hours[k].dateTime = Temporal.Instant.from(dto.hours[k].dateTime);
     }
 }
 
