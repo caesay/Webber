@@ -33,6 +33,10 @@ class HttpingBlockServer : SimpleBlockServerBase<HttpingBlockDto>
     private PingBlockServer _pingSvc;
     private List<HttpingTarget> _targets;
     private ILogger _logger;
+    private CancellationTokenSource _targetsCts;
+
+    public override Type ConfigType => typeof(HttpingBlockConfig);
+    public override void UpdateConfig(object newConfig) => _config = (HttpingBlockConfig)newConfig;
 
     public HttpingBlockServer(IServiceProvider sp, HttpingBlockConfig config, IDbService db, PingBlockServer pingSvc, ILogger<HttpingBlockServer> logger)
         : base(sp, 5000)
@@ -46,11 +50,19 @@ class HttpingBlockServer : SimpleBlockServerBase<HttpingBlockDto>
         registerMigrations();
     }
 
+    public override async Task StopAsync()
+    {
+        _targetsCts?.Cancel();
+        await base.StopAsync();
+    }
+
     public override void Start(CancellationToken cancellationToken = default)
     {
+        _targetsCts?.Cancel();
+        _targetsCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _targets = _config.Targets.Select(ts => new HttpingTarget { Settings = ts }).ToList();
         foreach (var tgt in _targets)
-            tgt.Start(this);
+            tgt.Start(this, _targetsCts.Token);
         base.Start(cancellationToken);
     }
 
@@ -219,12 +231,14 @@ class HttpingBlockServer : SimpleBlockServerBase<HttpingBlockDto>
         public TimeZoneInfo Timezone;
         public object Lock = new();
         private HttpingBlockServer _svc;
+        private CancellationToken _ct;
 
         public override string ToString() => $"{Settings.Name} ({Settings.Url}) : {Recent.Count:#,0} recent, {Twominutely.Count:#,0} twomin, {Hourly.Count:#,0} hourly, {Daily.Count:#,0} daily, {Monthly.Count:#,0} monthly";
 
-        public void Start(HttpingBlockServer svc)
+        public void Start(HttpingBlockServer svc, CancellationToken ct)
         {
             _svc = svc;
+            _ct = ct;
             Timezone = TimeZoneInfo.FindSystemTimeZoneById(Settings.TimeZone);
 
             var start = DateTime.UtcNow;
@@ -319,7 +333,7 @@ class HttpingBlockServer : SimpleBlockServerBase<HttpingBlockDto>
         private void thread()
         {
             var next = DateTime.UtcNow;
-            while (true)
+            while (!_ct.IsCancellationRequested)
             {
                 try
                 {
@@ -392,7 +406,9 @@ class HttpingBlockServer : SimpleBlockServerBase<HttpingBlockDto>
                 next += Settings.Interval;
                 if (next < DateTime.UtcNow - Settings.Interval)
                     next = DateTime.UtcNow; // lagging behind too much; reset
-                Util.SleepUntil(next);
+                var sleepDuration = next.ToUniversalTime() - DateTime.UtcNow;
+                if (sleepDuration > TimeSpan.Zero)
+                    _ct.WaitHandle.WaitOne(sleepDuration);
             }
         }
 

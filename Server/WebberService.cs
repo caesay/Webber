@@ -19,6 +19,7 @@ public class AppConfig
 class WebberService
 {
     private readonly string _configPath;
+    private readonly List<Type> _registeredBlockTypes = new();
     private WebApplication app;
     private CancellationTokenSource _cts = new();
 
@@ -61,7 +62,20 @@ class WebberService
             var configTypeName = blockServerType.FullName.Replace("BlockServer", "BlockConfig");
             var configType = Assembly.GetExecutingAssembly().GetType(configTypeName);
             if (configType != null)
-                builder.Services.Add(new ServiceDescriptor(configType, blockConfig.Get(configType)));
+            {
+                object configInstance;
+                try
+                {
+                    configInstance = blockConfig.Get(configType);
+                }
+                catch (Exception)
+                {
+                    configInstance = Activator.CreateInstance(configType);
+                }
+                builder.Services.Add(new ServiceDescriptor(configType, configInstance));
+            }
+
+            _registeredBlockTypes.Add(blockServerType);
         }
 
         var config = builder.Configuration.GetSection("App").GetOrDefault<AppConfig>();
@@ -87,7 +101,21 @@ class WebberService
 
     private void Init()
     {
-        foreach (var service in app.Services.GetServices<IBlockServer>())
+        var blocks = new List<IBlockServer>();
+        foreach (var blockType in _registeredBlockTypes)
+        {
+            try
+            {
+                var service = (IBlockServer)app.Services.GetRequiredService(blockType);
+                blocks.Add(service);
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(ex, "Failed to construct {Block}", blockType.Name);
+            }
+        }
+
+        foreach (var service in blocks)
             service.Init(app);
 
         app.MapHub<DashboardHub>("/hub/dashboard");
@@ -95,15 +123,26 @@ class WebberService
         var dbService = app.Services.GetRequiredService<IDbService>();
         dbService.Initialise();
 
-        foreach (var service in app.Services.GetServices<IBlockServer>())
+        foreach (var service in blocks)
         {
             Task.Run(() =>
             {
                 var start = DateTime.UtcNow;
-                service.Start(_cts.Token);
-                app.Logger.LogInformation($"Service {service.GetType().Name} started in {(DateTime.UtcNow - start).TotalSeconds:0.0} seconds");
+                try
+                {
+                    service.Start(_cts.Token);
+                    app.Logger.LogInformation($"Service {service.GetType().Name} started in {(DateTime.UtcNow - start).TotalSeconds:0.0} seconds");
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(ex, "Failed to start {Block}", service.GetType().Name);
+                    service.ReportError($"Failed to start: {ex.Message}");
+                }
             });
         }
+
+        var configWatcher = new ConfigWatcher(_configPath, blocks, app.Services.GetRequiredService<ILogger<ConfigWatcher>>());
+        configWatcher.Start(_cts.Token);
     }
 
     public int StartAndBlock()

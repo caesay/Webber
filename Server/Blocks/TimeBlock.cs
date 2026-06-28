@@ -18,6 +18,9 @@ class TimeBlockServer : SimpleBlockServerBase<TimeBlockDto>
 {
     private TimeBlockConfig _config;
 
+    public override Type ConfigType => typeof(TimeBlockConfig);
+    public override void UpdateConfig(object newConfig) => _config = (TimeBlockConfig)newConfig;
+
     public TimeBlockServer(IServiceProvider sp, TimeBlockConfig config)
         : base(sp, TimeSpan.FromMinutes(1))
     {

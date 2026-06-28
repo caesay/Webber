@@ -75,8 +75,20 @@ class SynologyRouterBlockServer : SimpleBlockServerBase<SynologyRouterBlockDto>
     private SynologSrmService _srm;
     private SynologDsmService _dsm;
     private SynologyRouterBlockConfig _config;
+    private CancellationTokenSource _slowTickCts;
 
     Queue<TxRxDevicePairGroup> _devices = new Queue<TxRxDevicePairGroup>();
+
+    public override Type ConfigType => typeof(SynologyRouterBlockConfig);
+    public override void UpdateConfig(object newConfig)
+    {
+        _config = (SynologyRouterBlockConfig)newConfig;
+        _interval = TimeSpan.FromMilliseconds(_config.QueryIntervalMs);
+        _srm = new SynologSrmService(_config.BaseUrl, _config.Port, _config.Https, _config.LoginUser, _config.LoginPassword);
+        _dsm = (_config.NasLoginPassword != null && _config.NasLoginUser != null)
+            ? new SynologDsmService(_config.NasBaseUrl, _config.NasPort, _config.NasHttps, _config.NasLoginUser, _config.NasLoginPassword)
+            : null;
+    }
 
     public SynologyRouterBlockServer(IServiceProvider sp, SynologyRouterBlockConfig config)
         : base(sp, config.QueryIntervalMs)
@@ -88,22 +100,37 @@ class SynologyRouterBlockServer : SimpleBlockServerBase<SynologyRouterBlockDto>
             _dsm = new SynologDsmService(config.NasBaseUrl, config.NasPort, config.NasHttps, config.NasLoginUser, config.NasLoginPassword);
     }
 
+    public override async Task StopAsync()
+    {
+        _slowTickCts?.Cancel();
+        await base.StopAsync();
+    }
+
     public override void Start(CancellationToken cancellationToken = default)
     {
-        new Thread(TickSlow) { IsBackground = true }.Start();
+        _slowTickCts?.Cancel();
+        _slowTickCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var ct = _slowTickCts.Token;
+        new Thread(() => TickSlow(ct)) { IsBackground = true }.Start();
         base.Start(cancellationToken);
     }
 
-    void TickSlow()
+    void TickSlow(CancellationToken ct)
     {
-        // this runs in a separate loop as these requests can take longer,
-        // and are not critical to update in real time
-        var gatewaysTask = _srm.GetSmartWanGateway();
-        var devicesTask = _srm.GetNetworkNsmDevice();
-        Task.WaitAll(gatewaysTask, devicesTask);
-        gateways = gatewaysTask.Result;
-        devices = devicesTask.Result;
-        Thread.Sleep(5000);
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var gatewaysTask = _srm.GetSmartWanGateway();
+                var devicesTask = _srm.GetNetworkNsmDevice();
+                Task.WaitAll(gatewaysTask, devicesTask);
+                gateways = gatewaysTask.Result;
+                devices = devicesTask.Result;
+            }
+            catch (Exception) when (ct.IsCancellationRequested) { break; }
+            catch (Exception) { }
+            ct.WaitHandle.WaitOne(5000);
+        }
     }
 
     SynologyDeviceTraffic[] _lastTraffic;

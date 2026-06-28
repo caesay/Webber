@@ -56,10 +56,21 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
     private static readonly string ApplicationName = "TimeUntilBlockServer";
     private static readonly string DefaultCredentialsJson = "{\"installed\":{\"client_id\":\"130261896764-m7jl26tiob0gdrjqrmgjm0fcqqg0nkh2.apps.googleusercontent.com\",\"project_id\":\"titanium-cacao-318415\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\":\"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\",\"redirect_uris\":[\"urn:ietf:wg:oauth:2.0:oob\",\"http://localhost\"]}}";
 
-    private readonly TimeUntilBlockConfig _config;
+    private TimeUntilBlockConfig _config;
     private readonly ILogger<TimeUntilBlockServer> _log;
-    private readonly Lazy<Regex[]> _excludePatterns;
+    private Lazy<Regex[]> _excludePatterns;
     private CalendarService _svc;
+    private bool _hasInitialized;
+
+    public override Type ConfigType => typeof(TimeUntilBlockConfig);
+    public override void UpdateConfig(object newConfig)
+    {
+        _config = (TimeUntilBlockConfig)newConfig;
+        _excludePatterns = new Lazy<Regex[]>(() =>
+            _config.ExcludeEventPatterns
+                .Select(p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled))
+                .ToArray());
+    }
 
     public TimeUntilBlockServer(IServiceProvider sp, ILogger<TimeUntilBlockServer> log, TimeUntilBlockConfig config)
         : base(sp, TimeSpan.FromMinutes(1))
@@ -96,6 +107,13 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
 
     public override void Start(CancellationToken cancellationToken = default)
     {
+        if (_hasInitialized)
+        {
+            base.Start(cancellationToken);
+            return;
+        }
+
+        _hasInitialized = true;
         DoGoogleAuth().ContinueWith(t =>
         {
             if (t.IsFaulted)

@@ -5,7 +5,7 @@ namespace Webber.Server.Blocks;
 public abstract class SimpleBlockServerBase<TDto> : BlockServerBase<TDto>
     where TDto : BaseDto, new()
 {
-    private readonly TimeSpan _interval;
+    protected TimeSpan _interval;
 
     public SimpleBlockServerBase(IServiceProvider sp, TimeSpan interval) : base(sp)
     {
@@ -21,39 +21,53 @@ public abstract class SimpleBlockServerBase<TDto> : BlockServerBase<TDto>
 
     protected virtual bool ShouldTick() => LastUpdate == null || IsAnyClientConnected();
 
+    public override void ReportError(string errorMessage)
+    {
+        SendUpdate((LastUpdate ?? new TDto()) with { ErrorMessage = errorMessage });
+    }
+
     public override void Start(CancellationToken cancellationToken = default)
     {
-        Task.Run(() => RunAsync(cancellationToken));
+        _blockCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _stoppedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task.Run(() => RunAsync(_blockCts.Token));
     }
 
     private async Task RunAsync(CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        try
         {
-            var start = DateTime.UtcNow;
-            try
+            while (!ct.IsCancellationRequested)
             {
-                if (ShouldTick())
+                var start = DateTime.UtcNow;
+                try
                 {
-                    var update = Tick();
-                    if (update != null)
-                        SendUpdate(update);
+                    if (ShouldTick())
+                    {
+                        var update = Tick();
+                        if (update != null)
+                            SendUpdate(update);
+                    }
                 }
-            }
-            catch (TellUserException ex)
-            {
-                Logger.LogWarning($"TellUser: {ex.Message}");
-                SendUpdate((LastUpdate ?? new TDto()) with { ErrorMessage = ex.Message });
-            }
+                catch (TellUserException ex)
+                {
+                    Logger.LogWarning($"TellUser: {ex.Message}");
+                    SendUpdate((LastUpdate ?? new TDto()) with { ErrorMessage = ex.Message });
+                }
 #if !DEBUG
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Unhandled exception");
-                SendUpdate((LastUpdate ?? new TDto()) with { ErrorMessage = ex.Message });
-            }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Unhandled exception");
+                    SendUpdate((LastUpdate ?? new TDto()) with { ErrorMessage = ex.Message });
+                }
 #endif
 
-            await SleepUntilNextTickAsync(start, ct);
+                await SleepUntilNextTickAsync(start, ct);
+            }
+        }
+        finally
+        {
+            SignalStopped();
         }
     }
 

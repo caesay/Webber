@@ -22,6 +22,10 @@ class WeatherDotComBlockServer : SimpleBlockServerBase<WeatherDotComBlockDto>
     private IDbService _db;
     private Dictionary<DateTime, WeatherDotComForecastHourDto> _recentHourly = new();
     private HttpClient _hc = new();
+    private bool _hasInitialized;
+
+    public override Type ConfigType => typeof(WeatherDotComBlockConfig);
+    public override void UpdateConfig(object newConfig) => _config = (WeatherDotComBlockConfig)newConfig;
 
     public WeatherDotComBlockServer(IServiceProvider sp, WeatherDotComBlockConfig config, IDbService db) : base(sp, 0)
     {
@@ -98,17 +102,21 @@ class WeatherDotComBlockServer : SimpleBlockServerBase<WeatherDotComBlockDto>
 
     public override void Start(CancellationToken cancellationToken = default)
     {
-        if (_config.DumpPath != null)
+        if (!_hasInitialized)
         {
-            var files = new DirectoryInfo(_config.DumpPath).GetFiles($"hourly--{LocStr}--*.json.gz");
-            foreach (var file in files.OrderBy(f => f.Name)) // name sort is date sort
+            _hasInitialized = true;
+            if (_config.DumpPath != null)
             {
-                var ts = DateTimeOffset.FromUnixTimeSeconds(int.Parse(Regex.Match(file.Name, @"--ux(\d+)--").Groups[1].ValueSpan)).UtcDateTime;
-                if (ts < DateTime.UtcNow.AddDays(-1))
-                    continue;
-                using var fs = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                using var gz = new GZipStream(fs, CompressionMode.Decompress);
-                AddForecast(JObject.Parse(gz.ReadAllBytes().FromUtf8()));
+                var files = new DirectoryInfo(_config.DumpPath).GetFiles($"hourly--{LocStr}--*.json.gz");
+                foreach (var file in files.OrderBy(f => f.Name)) // name sort is date sort
+                {
+                    var ts = DateTimeOffset.FromUnixTimeSeconds(int.Parse(Regex.Match(file.Name, @"--ux(\d+)--").Groups[1].ValueSpan)).UtcDateTime;
+                    if (ts < DateTime.UtcNow.AddDays(-1))
+                        continue;
+                    using var fs = File.Open(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    using var gz = new GZipStream(fs, CompressionMode.Decompress);
+                    AddForecast(JObject.Parse(gz.ReadAllBytes().FromUtf8()));
+                }
             }
         }
         base.Start(cancellationToken);

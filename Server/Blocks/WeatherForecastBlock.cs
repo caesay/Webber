@@ -18,6 +18,10 @@ class WeatherForecastBlockServer : SimpleBlockServerBase<WeatherForecastBlockDto
     private WeatherForecastBlockConfig _config;
     private HttpClient _httpClient = new();
     private Dictionary<DateTime, WeatherForecastHourDto> _recentHours = new(); // the API does not return predictions for today that are now in the past but we want to chart them
+    private bool _hasInitialized;
+
+    public override Type ConfigType => typeof(WeatherForecastBlockConfig);
+    public override void UpdateConfig(object newConfig) => _config = (WeatherForecastBlockConfig)newConfig;
 
     public WeatherForecastBlockServer(IServiceProvider sp, WeatherForecastBlockConfig config)
         : base(sp, TimeSpan.FromMinutes(30))
@@ -27,9 +31,13 @@ class WeatherForecastBlockServer : SimpleBlockServerBase<WeatherForecastBlockDto
 
     public override void Start(CancellationToken cancellationToken = default)
     {
-        if (_config.CachePath != null)
-            if (File.Exists(_config.CachePath))
-                _recentHours = ClassifyXml.DeserializeFile<Dictionary<DateTime, WeatherForecastHourDto>>(_config.CachePath);
+        if (!_hasInitialized)
+        {
+            _hasInitialized = true;
+            if (_config.CachePath != null)
+                if (File.Exists(_config.CachePath))
+                    _recentHours = ClassifyXml.DeserializeFile<Dictionary<DateTime, WeatherForecastHourDto>>(_config.CachePath);
+        }
         base.Start(cancellationToken);
     }
 

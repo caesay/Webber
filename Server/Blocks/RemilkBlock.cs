@@ -54,6 +54,9 @@ class RemilkBlockServer : SimpleBlockServerBase<RemilkBlockDto>
 {
     private RemilkBlockConfig _config;
 
+    public override Type ConfigType => typeof(RemilkBlockConfig);
+    public override void UpdateConfig(object newConfig) => _config = (RemilkBlockConfig)newConfig;
+
     public RemilkBlockServer(IServiceProvider sp, RemilkBlockConfig config)
         : base(sp, TimeSpan.FromSeconds(60))
     {

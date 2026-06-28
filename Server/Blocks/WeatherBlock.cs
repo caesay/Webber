@@ -19,6 +19,10 @@ class WeatherBlockServer : SimpleBlockServerBase<WeatherBlockDto>
     private IDbService _db;
     private Dictionary<DateTime, decimal> _temperatures = new();
     private HttpClient _httpClient = new();
+    private bool _hasInitialized;
+
+    public override Type ConfigType => typeof(WeatherBlockConfig);
+    public override void UpdateConfig(object newConfig) => _config = (WeatherBlockConfig)newConfig;
 
     public WeatherBlockServer(IServiceProvider sp, WeatherBlockConfig config, IDbService db)
         : base(sp, TimeSpan.FromMinutes(1))
@@ -30,14 +34,18 @@ class WeatherBlockServer : SimpleBlockServerBase<WeatherBlockDto>
 
     public override void Start(CancellationToken cancellationToken = default)
     {
-        if (_db.Enabled)
-            using (var conn = _db.OpenConnection())
-            {
-                _temperatures = conn.Query<TbWeatherTemperature>(
-                    $@"SELECT * FROM {nameof(TbWeatherTemperature)} WHERE {nameof(TbWeatherTemperature.Timestamp)} > @limit",
-                    new { limit = DateTime.UtcNow.AddDays(-8).ToDbDateTime() }
-                ).ToDictionary(r => r.Timestamp.FromDbDateTime(), r => (decimal)r.Temperature);
-            }
+        if (!_hasInitialized)
+        {
+            _hasInitialized = true;
+            if (_db.Enabled)
+                using (var conn = _db.OpenConnection())
+                {
+                    _temperatures = conn.Query<TbWeatherTemperature>(
+                        $@"SELECT * FROM {nameof(TbWeatherTemperature)} WHERE {nameof(TbWeatherTemperature.Timestamp)} > @limit",
+                        new { limit = DateTime.UtcNow.AddDays(-8).ToDbDateTime() }
+                    ).ToDictionary(r => r.Timestamp.FromDbDateTime(), r => (decimal)r.Temperature);
+                }
+        }
 
         base.Start(cancellationToken);
     }

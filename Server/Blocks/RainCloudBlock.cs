@@ -58,6 +58,11 @@ class RainCloudBlockServer : SimpleBlockServerBase<RainCloudBlockDto>
         };
     }
 
+    private bool _hasInitialized;
+
+    public override Type ConfigType => typeof(RainCloudBlockConfig);
+    public override void UpdateConfig(object newConfig) => _config = (RainCloudBlockConfig)newConfig;
+
     public RainCloudBlockServer(IServiceProvider sp, RainCloudBlockConfig config)
         : base(sp, TimeSpan.FromMinutes(5))
     {
@@ -76,9 +81,13 @@ class RainCloudBlockServer : SimpleBlockServerBase<RainCloudBlockDto>
 
     public override void Start(CancellationToken cancellationToken = default)
     {
-        if (_config.CachePath != null)
-            if (File.Exists(_config.CachePath))
-                _havePoints = ClassifyXml.DeserializeFile<Dictionary<string, RainCloudPtDto>>(_config.CachePath);
+        if (!_hasInitialized)
+        {
+            _hasInitialized = true;
+            if (_config.CachePath != null)
+                if (File.Exists(_config.CachePath))
+                    _havePoints = ClassifyXml.DeserializeFile<Dictionary<string, RainCloudPtDto>>(_config.CachePath);
+        }
         base.Start(cancellationToken);
     }
 

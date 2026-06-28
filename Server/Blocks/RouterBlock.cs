@@ -23,6 +23,14 @@ class RouterBlockServer : SimpleBlockServerBase<RouterBlockDto>
     private RouterBlockConfig _config;
     private IDbService _db;
     private Queue<RouterHistoryPoint> _history = new Queue<RouterHistoryPoint>();
+    private bool _hasInitialized;
+
+    public override Type ConfigType => typeof(RouterBlockConfig);
+    public override void UpdateConfig(object newConfig)
+    {
+        _config = (RouterBlockConfig)newConfig;
+        _interval = TimeSpan.FromMilliseconds(_config.QueryIntervalMs);
+    }
 
     public RouterBlockServer(IServiceProvider sp, RouterBlockConfig config, IDbService db)
         : base(sp, config.QueryIntervalMs)
@@ -34,17 +42,21 @@ class RouterBlockServer : SimpleBlockServerBase<RouterBlockDto>
 
     public override void Start(CancellationToken cancellationToken = default)
     {
-        if (_db.Enabled)
-            using (var conn = _db.OpenConnection())
-            {
-                _history = conn.Query<TbRouterHistoryEntry>(
-                        $@"SELECT * FROM {nameof(TbRouterHistoryEntry)} WHERE {nameof(TbRouterHistoryEntry.Timestamp)} >= @limit ORDER BY {nameof(TbRouterHistoryEntry.Timestamp)}",
-                        new { limit = DateTime.UtcNow.AddHours(-24).ToDbDateTime() }
-                    )
-                    .Select(pt => new RouterHistoryPoint { Timestamp = pt.Timestamp.FromDbDateTime(), TxTotal = pt.TxTotal, RxTotal = pt.RxTotal })
-                    .ToQueue();
-            }
-        ptPrev = _history.LastOrDefault();
+        if (!_hasInitialized)
+        {
+            _hasInitialized = true;
+            if (_db.Enabled)
+                using (var conn = _db.OpenConnection())
+                {
+                    _history = conn.Query<TbRouterHistoryEntry>(
+                            $@"SELECT * FROM {nameof(TbRouterHistoryEntry)} WHERE {nameof(TbRouterHistoryEntry.Timestamp)} >= @limit ORDER BY {nameof(TbRouterHistoryEntry.Timestamp)}",
+                            new { limit = DateTime.UtcNow.AddHours(-24).ToDbDateTime() }
+                        )
+                        .Select(pt => new RouterHistoryPoint { Timestamp = pt.Timestamp.FromDbDateTime(), TxTotal = pt.TxTotal, RxTotal = pt.RxTotal })
+                        .ToQueue();
+                }
+            ptPrev = _history.LastOrDefault();
+        }
 
         base.Start(cancellationToken);
     }

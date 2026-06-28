@@ -52,12 +52,29 @@ class ComputerStatsBlockServer : SimpleBlockServerBase<ComputerStatsBlockDto>
     private Dictionary<string, ComputerStats> _lastSuccessfulResults = new();
     private Dictionary<string, IComputerStatsProvider> _providers = new();
 
+    public override Type ConfigType => typeof(ComputerStatsBlockConfig);
+    public override void UpdateConfig(object newConfig)
+    {
+        _config = (ComputerStatsBlockConfig)newConfig;
+        _interval = TimeSpan.FromMilliseconds(_config.IntervalMs);
+        SetupFromConfig();
+    }
+
     public ComputerStatsBlockServer(IServiceProvider sp, ComputerStatsBlockConfig config)
         : base(sp, config.IntervalMs)
     {
         _config = config;
+        SetupFromConfig();
+    }
 
-        foreach (var computer in config.Computers)
+    private void SetupFromConfig()
+    {
+        _snmpConnections.Clear();
+        _computerInfo.Clear();
+        _lastSuccessfulResults.Clear();
+        _providers.Clear();
+
+        foreach (var computer in _config.Computers)
         {
             _computerInfo[computer.Name] = new ComputerInfo();
 

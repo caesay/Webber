@@ -19,6 +19,14 @@ class PingBlockServer : SimpleBlockServerBase<PingBlockDto>
     private PingBlockConfig _config;
     private IDbService _db;
     private Queue<(int? ms, DateTime utc)> _recentPings = new();
+    private bool _hasInitialized;
+
+    public override Type ConfigType => typeof(PingBlockConfig);
+    public override void UpdateConfig(object newConfig)
+    {
+        _config = (PingBlockConfig)newConfig;
+        _interval = TimeSpan.FromMilliseconds(_config.IntervalMs);
+    }
 
     public PingBlockServer(IServiceProvider sp, PingBlockConfig config, IDbService db)
         : base(sp, config.IntervalMs)
@@ -32,14 +40,18 @@ class PingBlockServer : SimpleBlockServerBase<PingBlockDto>
 
     public override void Start(CancellationToken cancellationToken = default)
     {
-        if (_db.Enabled)
-            using (var conn = _db.OpenConnection())
-                _recentPings = conn.Query<TbPingHistoryEntry>(
-                        $@"SELECT * FROM {nameof(TbPingHistoryEntry)} WHERE {nameof(TbPingHistoryEntry.Timestamp)} >= @limit ORDER BY {nameof(TbPingHistoryEntry.Timestamp)}",
-                        new { limit = DateTime.UtcNow.AddMilliseconds(-_config.IntervalMs * (_config.RecentLength + 0.5)).ToDbDateTime() }
-                    )
-                    .Select(pt => (ms: pt.Ping, utc: pt.Timestamp.FromDbDateTime()))
-                    .ToQueue();
+        if (!_hasInitialized)
+        {
+            _hasInitialized = true;
+            if (_db.Enabled)
+                using (var conn = _db.OpenConnection())
+                    _recentPings = conn.Query<TbPingHistoryEntry>(
+                            $@"SELECT * FROM {nameof(TbPingHistoryEntry)} WHERE {nameof(TbPingHistoryEntry.Timestamp)} >= @limit ORDER BY {nameof(TbPingHistoryEntry.Timestamp)}",
+                            new { limit = DateTime.UtcNow.AddMilliseconds(-_config.IntervalMs * (_config.RecentLength + 0.5)).ToDbDateTime() }
+                        )
+                        .Select(pt => (ms: pt.Ping, utc: pt.Timestamp.FromDbDateTime()))
+                        .ToQueue();
+        }
 
         base.Start(cancellationToken);
     }

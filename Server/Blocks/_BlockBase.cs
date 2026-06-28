@@ -6,9 +6,14 @@ namespace Webber.Server.Blocks;
 public interface IBlockServer
 {
     string BlockName { get; }
+    string ConfigSectionName { get; }
+    Type ConfigType { get; }
     object LastUpdateDto { get; }
     void Init(WebApplication app);
     void Start(CancellationToken cancellationToken = default);
+    Task StopAsync();
+    void UpdateConfig(object newConfig);
+    void ReportError(string errorMessage);
     void IncrementDashboardConnections();
     void DecrementDashboardConnections();
 }
@@ -60,11 +65,29 @@ public abstract class BlockServerBase<TDto> : IBlockServer<TDto>
     private int _connectionCount;
     private int _dashboardConnectionCount;
 
+    protected CancellationTokenSource _blockCts;
+    protected TaskCompletionSource _stoppedTcs;
+
     public string BlockName => typeof(TDto).Name.Replace("Dto", "");
+    public string ConfigSectionName => GetType().Name.Replace("BlockServer", "Block");
+    public virtual Type ConfigType => null;
     object IBlockServer.LastUpdateDto => LastUpdate;
     public TDto LastUpdate { get; private set; }
 
     public abstract void Start(CancellationToken cancellationToken = default);
+
+    public virtual async Task StopAsync()
+    {
+        _blockCts?.Cancel();
+        if (_stoppedTcs != null)
+            await Task.WhenAny(_stoppedTcs.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+    }
+
+    public virtual void UpdateConfig(object newConfig) { }
+
+    public virtual void ReportError(string errorMessage) { }
+
+    protected void SignalStopped() => _stoppedTcs?.TrySetResult();
 
     public BlockServerBase(IServiceProvider sp)
     {
