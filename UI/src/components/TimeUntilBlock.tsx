@@ -146,9 +146,9 @@ const TimeUntilBlock: React.FunctionComponent<{ data: TimeUntilBlockDto }> = ({ 
                     }
                 }
             }
-        }, 100);
+        }, 1000);
         return () => clearInterval(id);
-    });
+    }, [data]);
     return (
         <React.Fragment>
             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0 }}>

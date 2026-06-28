@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Webber.Client.Models;
 
 namespace Webber.Server.Blocks;
@@ -26,15 +25,13 @@ public abstract class BlockServerBase<TDto> : IBlockServer<TDto>
 
     public class BlockHub : Hub<IBlockHub>
     {
-        //public int NumberOfConnections => _service._connectedIds.Count;
-
         private readonly IBlockServer<TDto> _service;
 
         public BlockHub(IBlockServer<TDto> service) { _service = service; }
 
         public override async Task OnConnectedAsync()
         {
-            //_connectedIds.Add(Context.ConnectionId);
+            ((BlockServerBase<TDto>)_service).IncrementConnections();
             if (_service.LastUpdate != null)
             {
                 _service.LastUpdate.SentUtc = DateTime.UtcNow;
@@ -46,7 +43,7 @@ public abstract class BlockServerBase<TDto> : IBlockServer<TDto>
 
         public override Task OnDisconnectedAsync(Exception exception)
         {
-            //_connectedIds.Remove(Context.ConnectionId);
+            ((BlockServerBase<TDto>)_service).DecrementConnections();
             return base.OnDisconnectedAsync(exception);
         }
     }
@@ -55,7 +52,7 @@ public abstract class BlockServerBase<TDto> : IBlockServer<TDto>
     protected readonly AppConfig AppConfig;
 
     private IHubContext<BlockHub, IBlockHub> _hub;
-    private ConcurrentBag<string> _connectedIds = new ConcurrentBag<string>();
+    private int _connectionCount;
 
     public TDto LastUpdate { get; private set; }
 
@@ -81,9 +78,8 @@ public abstract class BlockServerBase<TDto> : IBlockServer<TDto>
         _hub.Clients.All.Update(dto);
     }
 
-    protected bool IsAnyClientConnected()
-    {
-        return true;
-        //return _hub.
-    }
+    internal void IncrementConnections() => Interlocked.Increment(ref _connectionCount);
+    internal void DecrementConnections() => Interlocked.Decrement(ref _connectionCount);
+
+    protected bool IsAnyClientConnected() => _connectionCount > 0;
 }

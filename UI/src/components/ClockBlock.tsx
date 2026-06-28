@@ -46,7 +46,7 @@ const ClockBlock: React.FunctionComponent<{ data: ClockBlockDto }> = ({ data }) 
     React.useEffect(() => {
         const interval = setInterval(() => { setTime(DateTime.utc().toMillis()); }, 1000);
         return () => clearInterval(interval);
-    });
+    }, []);
 
     function getTimeString(offset: number): string {
         return DateTime.fromMillis(time).setZone(`UTC${offset >= 0 ? '+' : ''}${offset}`).toFormat("HH:mm");
