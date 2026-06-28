@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { type BaseDto, isTimeBetween } from './util';
-import { useBlock } from './DashboardProvider';
+import { useBlock, useConnectionState } from './DashboardProvider';
 import { TextFit } from './TextFit';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCalendarDays, faCalendarWeek, faCaretRight } from '@fortawesome/free-solid-svg-icons'
+import BlockIcon from './BlockIcon';
 import { DateTime } from 'luxon';
 
 function formatRelative(dt: DateTime, withWrapper: boolean = true): string {
@@ -111,7 +112,9 @@ var audioSoon = new Audio('/soon.wav');
 var audioNow = new Audio('/now.mp3');
 
 const TimeUntilBlock: React.FunctionComponent = () => {
-    const { data } = useBlock<TimeUntilBlockDto>("TimeUntilBlock");
+    const { data, error } = useBlock<TimeUntilBlockDto>("TimeUntilBlock");
+    const connState = useConnectionState();
+    const connectionDown = connState.isReconnecting || connState.message !== null;
     const [warn, setWarn] = useState<string>();
     const [now, setNow] = useState<string>();
     const [_until, setUntil] = useState<number>();
@@ -158,7 +161,9 @@ const TimeUntilBlock: React.FunctionComponent = () => {
     return (
         <React.Fragment>
             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0 }}>
-                <FontAwesomeIcon icon={faCalendarWeek} style={{ fontSize: 40, marginBottom: 20, marginLeft: -7, color: "#548BAB" }} />
+                <div style={{ marginBottom: 20, marginLeft: -7 }}>
+                    <BlockIcon icon={faCalendarWeek} blockName="Calendar" error={error} connectionDown={connectionDown} />
+                </div>
                 {data.allDayEvents.map((e, i) => (
                     <div key={i} style={{ position: "absolute", width: 400, top: i * 34 + 59, height: 24, lineHeight: "24px", overflow: "visible" }}>
                         <TextFit mode="single" max={24}>{getTimeString(e, alt!)}</TextFit>
@@ -166,7 +171,9 @@ const TimeUntilBlock: React.FunctionComponent = () => {
                 ))}
             </div>
             <div style={{ position: "absolute", left: 420, top: 0, bottom: 0 }}>
-                <FontAwesomeIcon icon={faCalendarDays} style={{ fontSize: 40, marginBottom: 20, marginLeft: 39, color: "#548BAB" }} />
+                <div style={{ marginBottom: 20, marginLeft: 39 }}>
+                    <BlockIcon icon={faCalendarDays} blockName="Calendar" error={error} connectionDown={connectionDown} />
+                </div>
                 {data.regularEvents.map((e, i) => (
                     <div key={i} style={{ position: "absolute", left: 46, width: 400, top: i * 34 + 59, height: 24, lineHeight: "24px", overflow: "visible" }}>
                         {e.isNextUp && <FontAwesomeIcon icon={faCaretRight} style={{ color: alt ? "yellow" : "red", fontSize: 60, position: "absolute", left: -60, top: -15, width: 60, textAlign: "center" }} />}

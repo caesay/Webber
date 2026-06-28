@@ -4,7 +4,7 @@ import WeatherBlock from './WeatherBlock';
 import TimeUntilBlock from './TimeUntilBlock';
 import WeatherForecastBlock from './WeatherForecastBlock';
 import ComputerStatsBlock from './ComputerStatsBlock';
-import { DashboardProvider } from './DashboardProvider';
+import { ConnectionErrorPill, DashboardProvider } from './DashboardProvider';
 
 const styles = {
     clock: { position: "absolute" as const, left: 20, top: 20 },
@@ -33,6 +33,7 @@ function App() {
                 <div style={styles.weather}>
                     <WeatherBlock />
                 </div>
+                <ConnectionErrorPill />
             </div>
         </DashboardProvider>
     );

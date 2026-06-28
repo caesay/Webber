@@ -1,10 +1,11 @@
 import * as React from 'react';
 import styled from 'styled-components';
 import { type BaseDto, isTimeBetween } from './util';
-import { useBlock } from './DashboardProvider';
+import { useBlock, useConnectionState } from './DashboardProvider';
 import { DateTime } from 'luxon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCloud, faMoon, faSun } from '@fortawesome/free-solid-svg-icons';
+import BlockIcon from './BlockIcon';
 
 interface WeatherBlockDto extends BaseDto {
     curTemperature: number;
@@ -51,7 +52,10 @@ const SunsetDimmer = styled.div`
 `;
 
 const WeatherBlock: React.FunctionComponent = () => {
-    const { data } = useBlock<WeatherBlockDto>("WeatherBlock");
+    const { data, error } = useBlock<WeatherBlockDto>("WeatherBlock");
+    const connState = useConnectionState();
+    const connectionDown = connState.isReconnecting || connState.message !== null;
+
     if (!data) return null;
 
     const sunriseTime = DateTime.fromFormat(data.sunriseTime, "HH:mm", { zone: 'utc' })
@@ -64,7 +68,9 @@ const WeatherBlock: React.FunctionComponent = () => {
 
     return (
         <React.Fragment>
-            <FontAwesomeIcon icon={faCloud} style={{ fontSize: 40, marginBottom: 18, marginLeft: -2, color: "#548BAB" }} />
+            <div style={{ marginBottom: 18, marginLeft: -2 }}>
+                <BlockIcon icon={faCloud} blockName="Weather" error={error} connectionDown={connectionDown} />
+            </div>
             <SunriseContainer>
                 <FontAwesomeIcon icon={faSun} style={{ paddingRight: 10, color: "#EDBF24" }} />
                 <span>{sunriseTime}</span>

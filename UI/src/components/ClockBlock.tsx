@@ -1,10 +1,10 @@
 import * as React from 'react';
 import styled from 'styled-components';
 import { type BaseDto } from './util';
-import { useBlock } from './DashboardProvider';
+import { useBlock, useConnectionState } from './DashboardProvider';
 import { DateTime } from 'luxon';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock } from '@fortawesome/free-solid-svg-icons';
+import BlockIcon from './BlockIcon';
 
 const DateLabel = styled.div`
     height: 24px;
@@ -41,7 +41,9 @@ interface ClockBlockDto extends BaseDto {
 }
 
 const ClockBlock: React.FunctionComponent = () => {
-    const { data } = useBlock<ClockBlockDto>("TimeBlock");
+    const { data, error } = useBlock<ClockBlockDto>("TimeBlock");
+    const connState = useConnectionState();
+    const connectionDown = connState.isReconnecting || connState.message !== null;
 
     const [time, setTime] = React.useState(DateTime.utc().toMillis());
 
@@ -61,7 +63,9 @@ const ClockBlock: React.FunctionComponent = () => {
 
     return (
         <React.Fragment>
-            <FontAwesomeIcon icon={faClock} style={{ fontSize: 40, marginBottom: 20, marginLeft: -5, color: "#548BAB" }} />
+            <div style={{ marginBottom: 20, marginLeft: -5 }}>
+                <BlockIcon icon={faClock} blockName="Clock" error={error} connectionDown={connectionDown} />
+            </div>
             <DateLabel>{DateTime.fromMillis(time).toFormat("cccc").substring(0, 3).toUpperCase() + ", " + DateTime.fromMillis(time).toFormat("dd MMM").toUpperCase()}</DateLabel>
             <Time>{getTimeString(data.localOffsetHours)}</Time>
             {firstTwoTz.map(t => (
