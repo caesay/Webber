@@ -55,4 +55,4 @@ jobs:
       - name: .NET Publish
         env:
           ESCAPED_TAGS: '''"${{ steps.nbgv-version.outputs.C_VERSION }};latest"'''
-        run: dotnet publish --os linux --arch x64 -c Release -p:ContainerImageTags=${{ env.ESCAPED_TAGS }} -p:ContainerRegistry=ghcr.io -p:ContainerRepository=${{ github.repository }} -p:PublishProfile=DefaultContainer
+        run: dotnet publish Server/Webber.Server.csproj --os linux --arch x64 -c Release -p:ContainerImageTags=${{ env.ESCAPED_TAGS }} -p:ContainerRegistry=ghcr.io -p:ContainerRepository=${{ github.repository }} -p:PublishProfile=DefaultContainer
