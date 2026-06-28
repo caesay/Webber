@@ -24,6 +24,7 @@ class CalendarKeyConfig
 {
     public string Id { get; set; }
     public string Color { get; set; }
+    public bool Disabled { get; set; }
 }
 
 class TimeUntilBlockConfig
@@ -151,6 +152,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
         int maxDaysAhead = 365;
 
         var calConfigs = _config.CalendarKeys
+            .Where(c => !c.Disabled)
             .GroupBy(c => c.Id)
             .Select(g => g.First())
             .ToList();
