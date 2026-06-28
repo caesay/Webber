@@ -33,6 +33,7 @@ interface CalendarEvent {
     isNextUp: boolean;
     isAllDay: boolean;
     specialEvent: boolean;
+    color?: string;
 }
 
 interface TimeUntilBlockDto extends BaseDto {
@@ -88,6 +89,10 @@ function getTimeString(e: CalendarEvent, alt: boolean) {
         opacity = 1.0;
     }
 
+    const colorDot = e.color ? (
+        <span style={{ display: "inline-block", width: 6, height: 16, borderRadius: 3, backgroundColor: e.color, marginRight: 8, verticalAlign: "middle", position: "relative", top: -2 }} />
+    ) : null;
+
     const wrapLen = 50;
     let displayText = momentStr + " - " + e.displayName;
 
@@ -99,12 +104,12 @@ function getTimeString(e: CalendarEvent, alt: boolean) {
             str2 = str2.substring(0, str1.length - 3) + "...";
         }
         return (
-            <div style={{ opacity, color, lineHeight: "16px" }}>{str1}<br />{str2}</div>
+            <div style={{ color, lineHeight: "16px" }}>{colorDot}<span style={{ opacity }}>{str1}<br />{str2}</span></div>
         );
     }
 
     return (
-        <span style={{ opacity, color }}>{momentStr} - {e.displayName}</span>
+        <span style={{ color }}>{colorDot}<span style={{ opacity }}>{momentStr} - {e.displayName}</span></span>
     );
 }
 
@@ -176,7 +181,7 @@ const TimeUntilBlock: React.FunctionComponent = () => {
                 </div>
                 {data.regularEvents.map((e, i) => (
                     <div key={i} style={{ position: "absolute", left: 46, width: 400, top: i * 34 + 59, height: 24, lineHeight: "24px", overflow: "visible" }}>
-                        {e.isNextUp && <FontAwesomeIcon icon={faCaretRight} style={{ color: alt ? "yellow" : "red", fontSize: 60, position: "absolute", left: -60, top: -15, width: 60, textAlign: "center" }} />}
+                        {e.isNextUp && <FontAwesomeIcon icon={faCaretRight} style={{ color: alt ? "yellow" : "red", fontSize: 60, position: "absolute", left: -60, top: -17, width: 60, textAlign: "center" }} />}
                         <TextFit mode="single" max={24}>{getTimeString(e, alt!)}</TextFit>
                     </div>
                 ))}

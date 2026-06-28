@@ -20,6 +20,12 @@ class TimeUntilSpecialEvent
     public int LeadDays { get; set; }
 }
 
+class CalendarKeyConfig
+{
+    public string Id { get; set; }
+    public string Color { get; set; }
+}
+
 class TimeUntilBlockConfig
 {
     /// <summary> The number of regular events to send to the client in each update. </summary>
@@ -31,8 +37,11 @@ class TimeUntilBlockConfig
     /// <summary> Optionally add a sleep timer to the list of events. </summary>
     public double? SleepTime { get; set; }
 
+    /// <summary> Default color dot for events from calendars without a color set, and for synthetic events (sleep, special). </summary>
+    public string DefaultColor { get; set; }
+
     /// <summary> An array of calendars to read from, as long as the authorized user has permission to access them. </summary>
-    public string[] CalendarKeys { get; set; }
+    public CalendarKeyConfig[] CalendarKeys { get; set; }
 
     /// <summary> Directory to save Google Authorization tokens to.</summary>
     public string AuthStoreDirectory { get; set; } = ".\\TimeUntilToken";
@@ -134,37 +143,42 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
         });
     }
 
-    private List<Event> FetchEvents(int desiredRegularCount, int desiredAllDayCount)
+    private List<(Event Event, string Color)> FetchEvents(int desiredRegularCount, int desiredAllDayCount)
     {
-        List<Event> allEvents = new List<Event>();
-        int windowSize = 30; // Search 30 days at a time
-        int currentOffset = 0; // Start from now
-        int maxDaysAhead = 365; // Maximum 1 year ahead
+        var allEvents = new List<(Event Event, string Color)>();
+        int windowSize = 30;
+        int currentOffset = 0;
+        int maxDaysAhead = 365;
+
+        var calConfigs = _config.CalendarKeys
+            .GroupBy(c => c.Id)
+            .Select(g => g.First())
+            .ToList();
 
         while (currentOffset < maxDaysAhead)
         {
-            foreach (var c in _config.CalendarKeys.Distinct())
+            foreach (var c in calConfigs)
             {
-                EventsResource.ListRequest request = _svc.Events.List(c);
+                EventsResource.ListRequest request = _svc.Events.List(c.Id);
                 request.TimeMinDateTimeOffset = DateTimeOffset.Now.AddDays(currentOffset);
                 request.TimeMaxDateTimeOffset = DateTimeOffset.Now.AddDays(currentOffset + windowSize);
                 request.ShowDeleted = false;
                 request.SingleEvents = true;
-                request.MaxResults = (desiredRegularCount + desiredAllDayCount) * 3; // Fetch extra to allow for filtering
+                request.MaxResults = (desiredRegularCount + desiredAllDayCount) * 3;
                 request.OrderBy = EventsResource.ListRequest.OrderByEnum.StartTime;
 
                 var items = request.Execute().Items;
-                allEvents.AddRange(items);
+                foreach (var item in items)
+                    allEvents.Add((item, c.Color));
             }
 
-            // Check if we have enough of both types
-            int regularCount = allEvents.Count(e => e.Start?.DateTimeDateTimeOffset != null);
-            int allDayCount = allEvents.Count(e => e.Start?.DateTimeDateTimeOffset == null);
+            int regularCount = allEvents.Count(e => e.Event.Start?.DateTimeDateTimeOffset != null);
+            int allDayCount = allEvents.Count(e => e.Event.Start?.DateTimeDateTimeOffset == null);
 
             if (regularCount >= desiredRegularCount && allDayCount >= desiredAllDayCount)
                 break;
 
-            currentOffset += windowSize; // Shift the window forward
+            currentOffset += windowSize;
         }
 
         _log.LogDebug($"Fetched {allEvents.Count} events.");
@@ -193,24 +207,25 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
         }
 
         // Fetch all events
-        List<Event> events = FetchEvents(_config.NumberOfEvents, _config.NumberOfAllDayEvents);
+        var events = FetchEvents(_config.NumberOfEvents, _config.NumberOfAllDayEvents);
 
         // Process all events with a single LINQ query
         var allCandidates = events
-            .Where(i => i.EventType == "default") // filter out OOO
-            .Where(checkSelfRsvpNotDeclined) // filter out declined events
-            .Where(i => !string.IsNullOrWhiteSpace(i.Summary)) // no title?
-            .DistinctBy(i => i.RecurringEventId ?? i.Id)
+            .Where(i => i.Event.EventType == "default")
+            .Where(i => checkSelfRsvpNotDeclined(i.Event))
+            .Where(i => !string.IsNullOrWhiteSpace(i.Event.Summary))
+            .DistinctBy(i => i.Event.RecurringEventId ?? i.Event.Id)
             .Select(i => new CalendarEvent()
             {
-                Id = i.Id,
-                DisplayName = i.Summary,
-                StartTimeUtc = i.Start?.DateTimeDateTimeOffset?.UtcDateTime
-                    ?? DateTime.ParseExact(i.Start.Date, "yyyy-MM-dd", CultureInfo.CurrentCulture.DateTimeFormat),
-                EndTimeUtc = i.End?.DateTimeDateTimeOffset?.UtcDateTime
-                    ?? DateTime.ParseExact(i.End.Date, "yyyy-MM-dd", CultureInfo.CurrentCulture.DateTimeFormat),
-                IsRecurring = i.RecurringEventId != null,
-                IsAllDay = i.Start?.DateTimeDateTimeOffset == null,
+                Id = i.Event.Id,
+                DisplayName = i.Event.Summary,
+                StartTimeUtc = i.Event.Start?.DateTimeDateTimeOffset?.UtcDateTime
+                    ?? DateTime.ParseExact(i.Event.Start.Date, "yyyy-MM-dd", CultureInfo.CurrentCulture.DateTimeFormat),
+                EndTimeUtc = i.Event.End?.DateTimeDateTimeOffset?.UtcDateTime
+                    ?? DateTime.ParseExact(i.Event.End.Date, "yyyy-MM-dd", CultureInfo.CurrentCulture.DateTimeFormat),
+                IsRecurring = i.Event.RecurringEventId != null,
+                IsAllDay = i.Event.Start?.DateTimeDateTimeOffset == null,
+                Color = i.Color ?? _config.DefaultColor,
             })
             .OrderBy(i => i.StartTimeUtc)
             .Distinct()
@@ -234,6 +249,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
                 DisplayName = "Sleep!",
                 StartTimeUtc = sleepTimeStart,
                 IsAllDay = false,
+                Color = _config.DefaultColor,
             });
         }
 
@@ -263,7 +279,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
                     eventName = v.Title.Substring(0, idx) + ordinalYears + " " + v.Title.Substring(idx);
                 }
 
-                allCandidates.Add(new CalendarEvent { Id = "{special_" + i + "}", DisplayName = eventName, StartTimeUtc = nextDate, IsAllDay = true, SpecialEvent = true });
+                allCandidates.Add(new CalendarEvent { Id = "{special_" + i + "}", DisplayName = eventName, StartTimeUtc = nextDate, IsAllDay = true, SpecialEvent = true, Color = _config.DefaultColor });
             }
         }
 
@@ -286,7 +302,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
                     allDayCandidates.Remove(bv);
 
                 var name = string.Join(" & ", bindays.Select(v => v.DisplayName.Substring(0, v.DisplayName.Length - binsearch.Length)));
-                var binevent = new CalendarEvent { DisplayName = name + " Collection", IsAllDay = true, StartTimeUtc = bindays[0].StartTimeUtc };
+                var binevent = new CalendarEvent { DisplayName = name + " Collection", IsAllDay = true, StartTimeUtc = bindays[0].StartTimeUtc, Color = bindays[0].Color ?? _config.DefaultColor };
                 allDayCandidates.Add(binevent);
             }
         }

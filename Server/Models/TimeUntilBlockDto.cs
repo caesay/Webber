@@ -11,6 +11,7 @@ public record CalendarEvent
     public bool IsRecurring { get; set; }
     public bool IsAllDay { get; set; }
     public bool SpecialEvent { get; set; }
+    public string Color { get; set; }
 }
 
 public record TimeUntilBlockDto : BaseDto
