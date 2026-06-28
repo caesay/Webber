@@ -74,12 +74,12 @@ class RainCloudBlockServer : SimpleBlockServerBase<RainCloudBlockDto>
         }
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         if (_config.CachePath != null)
             if (File.Exists(_config.CachePath))
                 _havePoints = ClassifyXml.DeserializeFile<Dictionary<string, RainCloudPtDto>>(_config.CachePath);
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     protected override bool ShouldTick() => true;

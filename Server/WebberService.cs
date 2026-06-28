@@ -21,6 +21,7 @@ class WebberService : ServiceControl
 {
     private readonly string _configPath;
     private WebApplication app;
+    private CancellationTokenSource _cts = new();
 
     public WebberService(string configPath)
     {
@@ -90,17 +91,19 @@ class WebberService : ServiceControl
         foreach (var service in app.Services.GetServices<IBlockServer>())
             service.Init(app);
 
+        app.MapHub<DashboardHub>("/hub/dashboard");
+
         var dbService = app.Services.GetRequiredService<IDbService>();
         dbService.Initialise();
 
         foreach (var service in app.Services.GetServices<IBlockServer>())
         {
-            new Thread(() =>
+            Task.Run(() =>
             {
                 var start = DateTime.UtcNow;
-                service.Start();
+                service.Start(_cts.Token);
                 app.Logger.LogInformation($"Service {service.GetType().Name} started in {(DateTime.UtcNow - start).TotalSeconds:0.0} seconds");
-            }).Start();
+            });
         }
     }
 
@@ -121,9 +124,7 @@ class WebberService : ServiceControl
 
     public bool Stop(HostControl hostControl)
     {
-        //foreach (var service in app.Services.GetServices<IBlockServer>())
-        //    service.Stop();
-
+        _cts.Cancel();
         app.StopAsync().Wait();
         return true;
     }

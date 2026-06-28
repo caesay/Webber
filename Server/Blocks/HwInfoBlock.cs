@@ -21,7 +21,7 @@ internal class HwInfoBlockServer : SimpleBlockServerBase<HwInfoBlockDto>
     {
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
 
@@ -36,7 +36,7 @@ internal class HwInfoBlockServer : SimpleBlockServerBase<HwInfoBlockDto>
         _gpuCounters = GetGPUCounters();
         _wmiObject = new ManagementObjectSearcher("select * from Win32_OperatingSystem");
 
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     protected override HwInfoBlockDto Tick()

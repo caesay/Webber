@@ -11,7 +11,7 @@
     <ContainerRegistry>registry.hub.docker.com</ContainerRegistry>
   </PropertyGroup>
 
-  <ItemGroup>
+<ItemGroup>
     <ContainerEnvironmentVariable Include="ASPNETCORE_ENVIRONMENT" Value="Production" />
     <ContainerEnvironmentVariable Include="ASPNETCORE_URLS" Value="http://+:5669" />
     <ContainerEnvironmentVariable Include="WEBBER_DOCKER" Value="True" />

@@ -46,12 +46,12 @@ class HttpingBlockServer : SimpleBlockServerBase<HttpingBlockDto>
         registerMigrations();
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         _targets = _config.Targets.Select(ts => new HttpingTarget { Settings = ts }).ToList();
         foreach (var tgt in _targets)
             tgt.Start(this);
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     protected override HttpingBlockDto Tick()

@@ -4,6 +4,7 @@ import WeatherBlock from './WeatherBlock';
 import TimeUntilBlock from './TimeUntilBlock';
 import WeatherForecastBlock from './WeatherForecastBlock';
 import ComputerStatsBlock from './ComputerStatsBlock';
+import { DashboardProvider } from './DashboardProvider';
 
 const styles = {
     clock: { position: "absolute" as const, left: 20, top: 20 },
@@ -15,23 +16,25 @@ const styles = {
 
 function App() {
     return (
-        <div className="box">
-            <div style={styles.clock}>
-                <ClockBlock />
+        <DashboardProvider blocks={["TimeBlock", "TimeUntilBlock", "WeatherBlock", "WeatherForecastBlock", "ComputerStatsBlock"]}>
+            <div className="box">
+                <div style={styles.clock}>
+                    <ClockBlock />
+                </div>
+                <div style={styles.timeUntil}>
+                    <TimeUntilBlock />
+                </div>
+                <div style={styles.forecast}>
+                    <WeatherForecastBlock />
+                </div>
+                <div style={styles.stats}>
+                    <ComputerStatsBlock />
+                </div>
+                <div style={styles.weather}>
+                    <WeatherBlock />
+                </div>
             </div>
-            <div style={styles.timeUntil}>
-                <TimeUntilBlock />
-            </div>
-            <div style={styles.forecast}>
-                <WeatherForecastBlock />
-            </div>
-            <div style={styles.stats}>
-                <ComputerStatsBlock />
-            </div>
-            <div style={styles.weather}>
-                <WeatherBlock />
-            </div>
-        </div>
+        </DashboardProvider>
     );
 }
 

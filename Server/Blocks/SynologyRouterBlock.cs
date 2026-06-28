@@ -88,10 +88,10 @@ class SynologyRouterBlockServer : SimpleBlockServerBase<SynologyRouterBlockDto>
             _dsm = new SynologDsmService(config.NasBaseUrl, config.NasPort, config.NasHttps, config.NasLoginUser, config.NasLoginPassword);
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         new Thread(TickSlow) { IsBackground = true }.Start();
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     void TickSlow()

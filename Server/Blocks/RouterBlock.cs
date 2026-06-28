@@ -32,7 +32,7 @@ class RouterBlockServer : SimpleBlockServerBase<RouterBlockDto>
         registerMigrations();
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         if (_db.Enabled)
             using (var conn = _db.OpenConnection())
@@ -46,7 +46,7 @@ class RouterBlockServer : SimpleBlockServerBase<RouterBlockDto>
             }
         ptPrev = _history.LastOrDefault();
 
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     private HttpClient _httpClient;

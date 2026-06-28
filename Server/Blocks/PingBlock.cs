@@ -30,7 +30,7 @@ class PingBlockServer : SimpleBlockServerBase<PingBlockDto>
 
     public IEnumerable<(DateTime SentUtc, int? PingMs)> RecentPings => _recentPings.Select(pt => (pt.utc, pt.ms));
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         if (_db.Enabled)
             using (var conn = _db.OpenConnection())
@@ -41,7 +41,7 @@ class PingBlockServer : SimpleBlockServerBase<PingBlockDto>
                     .Select(pt => (ms: pt.Ping, utc: pt.Timestamp.FromDbDateTime()))
                     .ToQueue();
 
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     protected override bool ShouldTick() => true;

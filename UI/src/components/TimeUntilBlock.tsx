@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { withSubscription, type BaseDto, isTimeBetween } from './util';
+import { type BaseDto, isTimeBetween } from './util';
+import { useBlock } from './DashboardProvider';
 import { TextFit } from './TextFit';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCalendarDays, faCalendarWeek, faCaretRight } from '@fortawesome/free-solid-svg-icons'
@@ -109,13 +110,15 @@ function getTimeString(e: CalendarEvent, alt: boolean) {
 var audioSoon = new Audio('/soon.wav');
 var audioNow = new Audio('/now.mp3');
 
-const TimeUntilBlock: React.FunctionComponent<{ data: TimeUntilBlockDto }> = ({ data }) => {
+const TimeUntilBlock: React.FunctionComponent = () => {
+    const { data } = useBlock<TimeUntilBlockDto>("TimeUntilBlock");
     const [warn, setWarn] = useState<string>();
     const [now, setNow] = useState<string>();
     const [_until, setUntil] = useState<number>();
     const [alt, setAlt] = useState<boolean>(false);
 
     useEffect(() => {
+        if (!data) return;
         const id = setInterval(() => {
             const nowTime = DateTime.now();
             const nextIdx = data.regularEvents.findIndex(e => e.isNextUp);
@@ -149,6 +152,9 @@ const TimeUntilBlock: React.FunctionComponent<{ data: TimeUntilBlockDto }> = ({ 
         }, 1000);
         return () => clearInterval(id);
     }, [data]);
+
+    if (!data) return null;
+
     return (
         <React.Fragment>
             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0 }}>
@@ -172,4 +178,4 @@ const TimeUntilBlock: React.FunctionComponent<{ data: TimeUntilBlockDto }> = ({ 
     );
 }
 
-export default withSubscription(TimeUntilBlock, "TimeUntilBlock");
+export default TimeUntilBlock;

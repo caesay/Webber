@@ -85,7 +85,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
         return credential;
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         DoGoogleAuth().ContinueWith(t =>
         {
@@ -103,7 +103,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
 
             // the Tick loop will not be started unless authorization is completed
             _log.LogDebug("GoogleAuth completed.");
-            base.Start();
+            base.Start(cancellationToken);
         });
     }
 

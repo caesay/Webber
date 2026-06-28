@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import styled from 'styled-components';
-import { withSubscription, type BaseDto } from './util';
+import { type BaseDto } from './util';
+import { useBlock } from './DashboardProvider';
 import { DateTime } from 'luxon';
 
 interface WeatherForecastHourDto {
@@ -61,56 +62,62 @@ const TopBar = styled.div`
     border-top: 2px dotted #ffffff27;
 `;
 
-const WeatherForecastBlock: React.FunctionComponent<{ data: WeatherForecastBlockDto }> = ({ data }) => {
-    var allhours = data.hours;
+const TIME_INDICES = [1, 4, 7, 10, 13, 16, 19, 22] as const;
 
-    const hourms = 3600000; // 1 hour in ms
+const WeatherForecastBlock: React.FunctionComponent = () => {
+    const { data } = useBlock<WeatherForecastBlockDto>("WeatherForecastBlock");
 
-    const firstInRange = allhours.findIndex(v => DateTime.fromISO(v.dateTime).diff(DateTime.now()).as('milliseconds') >= -hourms * 6);
-    if (firstInRange > 0)
-        allhours = allhours.slice(firstInRange);
+    const processedData = useMemo(() => {
+        if (!data) return null;
 
-    var t4hours = allhours.slice(0, 24);
+        let allhours = data.hours;
+        const hourms = 3600000; // 1 hour in ms
 
-    if (!allhours || !t4hours || t4hours.length < 8) {
-        return (<div>Insufficient data</div>);
-    }
+        const firstInRange = allhours.findIndex(v => DateTime.fromISO(v.dateTime).diff(DateTime.now()).as('milliseconds') >= -hourms * 6);
+        if (firstInRange > 0)
+            allhours = allhours.slice(firstInRange);
 
-    const getPercip = (i: number) => {
-        let prob = Math.max(t4hours[i].rainProbability, t4hours[i - 1].rainProbability, t4hours[i + 1].rainProbability);
-        return prob.toString() + "%";
-    }
+        const t4hours = allhours.slice(0, 24);
 
-    const start = DateTime.fromISO(t4hours[0].dateTime).toMillis();
-    let now = DateTime.now().toMillis() - start;
-    let end = DateTime.fromISO(t4hours[23].dateTime).plus({ hours: 1 }).toMillis() - start;
+        if (!allhours || !t4hours || t4hours.length < 8) {
+            return null;
+        }
 
-    const maxWidth = 576;
-    const nowPosition = (now / end) * maxWidth;
+        const getPercip = (i: number) => {
+            let prob = Math.max(t4hours[i].rainProbability, t4hours[i - 1].rainProbability, t4hours[i + 1].rainProbability);
+            return prob.toString() + "%";
+        };
+
+        const start = DateTime.fromISO(t4hours[0].dateTime).toMillis();
+        const now = DateTime.now().toMillis() - start;
+        const end = DateTime.fromISO(t4hours[23].dateTime).plus({ hours: 1 }).toMillis() - start;
+
+        const maxWidth = 576;
+        const nowPosition = (now / end) * maxWidth;
+
+        const timeLabels = TIME_INDICES.map(i => DateTime.fromISO(t4hours[i].dateTime).toFormat("HH:mm"));
+        const percipLabels = TIME_INDICES.map(i => getPercip(i));
+
+        return { t4hours, nowPosition, timeLabels, percipLabels };
+    }, [data]);
+
+    if (!processedData) return !data ? null : <div>Insufficient data</div>;
+
+    const { t4hours, nowPosition, timeLabels, percipLabels } = processedData;
 
     return (
         <ForecastContianer>
             <TopBar />
             {t4hours.map((e, i) => (<RainBar key={i} style={{ left: i * 24, height: 78 * (e.rainProbability / 100) }} />))}
             <NowTime style={{ left: nowPosition - 2 }} />
-            <TimeText style={{ left: 72 * 0 }}>{DateTime.fromISO(t4hours[1].dateTime).toFormat("HH:mm")}</TimeText>
-            <TimeText style={{ left: 72 * 1 }}>{DateTime.fromISO(t4hours[4].dateTime).toFormat("HH:mm")}</TimeText>
-            <TimeText style={{ left: 72 * 2 }}>{DateTime.fromISO(t4hours[7].dateTime).toFormat("HH:mm")}</TimeText>
-            <TimeText style={{ left: 72 * 3 }}>{DateTime.fromISO(t4hours[10].dateTime).toFormat("HH:mm")}</TimeText>
-            <TimeText style={{ left: 72 * 4 }}>{DateTime.fromISO(t4hours[13].dateTime).toFormat("HH:mm")}</TimeText>
-            <TimeText style={{ left: 72 * 5 }}>{DateTime.fromISO(t4hours[16].dateTime).toFormat("HH:mm")}</TimeText>
-            <TimeText style={{ left: 72 * 6 }}>{DateTime.fromISO(t4hours[19].dateTime).toFormat("HH:mm")}</TimeText>
-            <TimeText style={{ left: 72 * 7 }}>{DateTime.fromISO(t4hours[22].dateTime).toFormat("HH:mm")}</TimeText>
-            <PercipText style={{ left: 72 * 0 }}>{getPercip(1)}</PercipText>
-            <PercipText style={{ left: 72 * 1 }}>{getPercip(4)}</PercipText>
-            <PercipText style={{ left: 72 * 2 }}>{getPercip(7)}</PercipText>
-            <PercipText style={{ left: 72 * 3 }}>{getPercip(10)}</PercipText>
-            <PercipText style={{ left: 72 * 4 }}>{getPercip(13)}</PercipText>
-            <PercipText style={{ left: 72 * 5 }}>{getPercip(16)}</PercipText>
-            <PercipText style={{ left: 72 * 6 }}>{getPercip(19)}</PercipText>
-            <PercipText style={{ left: 72 * 7 }}>{getPercip(22)}</PercipText>
+            {TIME_INDICES.map((_, i) => (
+                <TimeText key={i} style={{ left: 72 * i }}>{timeLabels[i]}</TimeText>
+            ))}
+            {TIME_INDICES.map((_, i) => (
+                <PercipText key={i} style={{ left: 72 * i }}>{percipLabels[i]}</PercipText>
+            ))}
         </ForecastContianer>
     );
 }
 
-export default withSubscription(WeatherForecastBlock, "WeatherForecastBlock");
+export default WeatherForecastBlock;

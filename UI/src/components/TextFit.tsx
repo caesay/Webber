@@ -11,12 +11,17 @@ interface TextFitProps {
 export function TextFit({ children, max = 100, min = 1, mode = 'single', style }: TextFitProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const innerRef = useRef<HTMLSpanElement>(null);
+    const prevTextRef = useRef<string>('');
     const [fontSize, setFontSize] = useState(max);
 
     useEffect(() => {
         const container = containerRef.current;
         const inner = innerRef.current;
         if (!container || !inner) return;
+
+        const currentText = inner.textContent || '';
+        if (currentText === prevTextRef.current) return;
+        prevTextRef.current = currentText;
 
         let lo = min;
         let hi = max;
@@ -39,7 +44,7 @@ export function TextFit({ children, max = 100, min = 1, mode = 'single', style }
         }
 
         setFontSize(hi);
-    }, [children, max, min, mode]);
+    });
 
     return (
         <div ref={containerRef} style={{ ...style, overflow: 'visible', width: '100%', height: '100%' }}>

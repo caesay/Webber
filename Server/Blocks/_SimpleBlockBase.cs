@@ -21,19 +21,14 @@ public abstract class SimpleBlockServerBase<TDto> : BlockServerBase<TDto>
 
     protected virtual bool ShouldTick() => IsAnyClientConnected();
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
-        new Thread(thread) { IsBackground = true }.Start();
+        Task.Run(() => RunAsync(cancellationToken));
     }
 
-    protected virtual void SleepUntilNextTick(DateTime tickStartUtc)
+    private async Task RunAsync(CancellationToken ct)
     {
-        Util.SleepUntil(tickStartUtc + _interval);
-    }
-
-    private void thread()
-    {
-        while (true)
+        while (!ct.IsCancellationRequested)
         {
             var start = DateTime.UtcNow;
             try
@@ -58,7 +53,17 @@ public abstract class SimpleBlockServerBase<TDto> : BlockServerBase<TDto>
             }
 #endif
 
-            SleepUntilNextTick(start);
+            await SleepUntilNextTickAsync(start, ct);
+        }
+    }
+
+    protected virtual async Task SleepUntilNextTickAsync(DateTime tickStartUtc, CancellationToken ct)
+    {
+        var delay = (tickStartUtc + _interval) - DateTime.UtcNow;
+        if (delay > TimeSpan.Zero)
+        {
+            try { await Task.Delay(delay, ct); }
+            catch (OperationCanceledException) { }
         }
     }
 }

@@ -28,7 +28,7 @@ class WeatherBlockServer : SimpleBlockServerBase<WeatherBlockDto>
         registerMigrations();
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         if (_db.Enabled)
             using (var conn = _db.OpenConnection())
@@ -39,7 +39,7 @@ class WeatherBlockServer : SimpleBlockServerBase<WeatherBlockDto>
                 ).ToDictionary(r => r.Timestamp.FromDbDateTime(), r => (decimal)r.Temperature);
             }
 
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     protected override bool ShouldTick() => true;

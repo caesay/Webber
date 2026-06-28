@@ -25,12 +25,12 @@ class WeatherForecastBlockServer : SimpleBlockServerBase<WeatherForecastBlockDto
         _config = config;
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         if (_config.CachePath != null)
             if (File.Exists(_config.CachePath))
                 _recentHours = ClassifyXml.DeserializeFile<Dictionary<DateTime, WeatherForecastHourDto>>(_config.CachePath);
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     protected override bool ShouldTick() => true;

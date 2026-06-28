@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { withSubscription, type BaseDto } from './util';
+import { type BaseDto } from './util';
+import { useBlock } from './DashboardProvider';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMicrochip, faBolt, faImage, faMemory, faPlug } from '@fortawesome/free-solid-svg-icons';
 
@@ -165,7 +166,7 @@ interface UtilizationGraphBarProps {
     fillHeight?: boolean; // If true, fills 100% height instead of 29px
 }
 
-const UtilizationGraphBar: React.FC<UtilizationGraphBarProps> = ({ utilization, timestamp, icon, fillHeight = false }) => {
+const UtilizationGraphBar = React.memo<UtilizationGraphBarProps>(({ utilization, timestamp, icon, fillHeight = false }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const historyRef = useRef<number[]>([]);
     const maxHistoryLength = BLOCK_WIDTH + 20; // One point per pixel width (plus extra for smoothness)
@@ -275,7 +276,7 @@ const UtilizationGraphBar: React.FC<UtilizationGraphBarProps> = ({ utilization, 
             )}
         </StatBar>
     );
-};
+});
 
 // Power consumption graph component
 interface PowerGraphBarProps {
@@ -298,7 +299,7 @@ const PowerCard = styled.div`
     border-radius: 2px;
 `;
 
-const PowerGraphBar: React.FC<PowerGraphBarProps> = ({ watts, timestamp }) => {
+const PowerGraphBar = React.memo<PowerGraphBarProps>(({ watts, timestamp }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const historyRef = useRef<number[]>([]);
     const maxHistoryLength = BLOCK_WIDTH; // One point per pixel width
@@ -387,7 +388,7 @@ const PowerGraphBar: React.FC<PowerGraphBarProps> = ({ watts, timestamp }) => {
             </span>
         </PowerCard>
     );
-};
+});
 
 // Calculate grid layout for cores
 const calculateGridLayout = (numCores: number): { cols: number, rows: number, doubleWidthSpan: number } => {
@@ -457,7 +458,9 @@ const getCoreLayout = (
     };
 };
 
-const ComputerStatsBlock: React.FunctionComponent<{ data: ComputerStatsBlockDto }> = ({ data }) => {
+const ComputerStatsBlock: React.FunctionComponent = () => {
+    const { data } = useBlock<ComputerStatsBlockDto>("ComputerStatsBlock");
+
     if (!data || !data.computers || data.computers.length === 0) {
         return <Container />;
     }
@@ -560,4 +563,4 @@ const ComputerStatsBlock: React.FunctionComponent<{ data: ComputerStatsBlockDto 
     );
 }
 
-export default withSubscription(ComputerStatsBlock, "ComputerStatsBlock");
+export default ComputerStatsBlock;

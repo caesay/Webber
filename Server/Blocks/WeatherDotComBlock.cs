@@ -83,15 +83,20 @@ class WeatherDotComBlockServer : SimpleBlockServerBase<WeatherDotComBlockDto>
         }
     }
 
-    protected override void SleepUntilNextTick(DateTime tickStartUtc)
+    protected override async Task SleepUntilNextTickAsync(DateTime tickStartUtc, CancellationToken ct)
     {
         var next = new DateTime(tickStartUtc.Year, tickStartUtc.Month, tickStartUtc.Day, tickStartUtc.Hour, 25, 0, 0, DateTimeKind.Utc);
         if (next < tickStartUtc.AddMinutes(5))
             next = next.AddHours(1);
-        Util.SleepUntil(next);
+        var delay = next - DateTime.UtcNow;
+        if (delay > TimeSpan.Zero)
+        {
+            try { await Task.Delay(delay, ct); }
+            catch (OperationCanceledException) { }
+        }
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         if (_config.DumpPath != null)
         {
@@ -106,7 +111,7 @@ class WeatherDotComBlockServer : SimpleBlockServerBase<WeatherDotComBlockDto>
                 AddForecast(JObject.Parse(gz.ReadAllBytes().FromUtf8()));
             }
         }
-        base.Start();
+        base.Start(cancellationToken);
     }
 
     private void AddForecast(JObject json)

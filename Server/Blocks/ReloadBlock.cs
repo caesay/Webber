@@ -18,7 +18,7 @@ class ReloadBlockServer : BlockServerBase<ReloadBlockDto>
         _path = env.WebRootPath ?? env.ContentRootPath;
     }
 
-    public override void Start()
+    public override void Start(CancellationToken cancellationToken = default)
     {
         Logger.LogInformation($"Monitoring for changes: {_path}");
         _watcher = new FileSystemWatcher();

@@ -5,8 +5,12 @@ namespace Webber.Server.Blocks;
 
 public interface IBlockServer
 {
+    string BlockName { get; }
+    object LastUpdateDto { get; }
     void Init(WebApplication app);
-    void Start();
+    void Start(CancellationToken cancellationToken = default);
+    void IncrementDashboardConnections();
+    void DecrementDashboardConnections();
 }
 
 public interface IBlockServer<TDto> : IBlockServer
@@ -52,16 +56,21 @@ public abstract class BlockServerBase<TDto> : IBlockServer<TDto>
     protected readonly AppConfig AppConfig;
 
     private IHubContext<BlockHub, IBlockHub> _hub;
+    private IHubContext<DashboardHub> _dashboardHub;
     private int _connectionCount;
+    private int _dashboardConnectionCount;
 
+    public string BlockName => typeof(TDto).Name.Replace("Dto", "");
+    object IBlockServer.LastUpdateDto => LastUpdate;
     public TDto LastUpdate { get; private set; }
 
-    public abstract void Start();
+    public abstract void Start(CancellationToken cancellationToken = default);
 
     public BlockServerBase(IServiceProvider sp)
     {
         Logger = (ILogger)sp.GetRequiredService(typeof(ILogger<>).MakeGenericType(GetType()));
         _hub = sp.GetRequiredService<IHubContext<BlockHub, IBlockHub>>();
+        _dashboardHub = sp.GetRequiredService<IHubContext<DashboardHub>>();
         AppConfig = sp.GetRequiredService<AppConfig>();
     }
 
@@ -76,10 +85,14 @@ public abstract class BlockServerBase<TDto> : IBlockServer<TDto>
         dto.LocalOffsetHours = Util.GetUtcOffset(AppConfig.LocalTimezoneName);
         LastUpdate = dto;
         _hub.Clients.All.Update(dto);
+        _dashboardHub.Clients.Group(BlockName).SendAsync("BlockUpdate", BlockName, dto);
     }
 
     internal void IncrementConnections() => Interlocked.Increment(ref _connectionCount);
     internal void DecrementConnections() => Interlocked.Decrement(ref _connectionCount);
 
-    protected bool IsAnyClientConnected() => _connectionCount > 0;
+    public void IncrementDashboardConnections() => Interlocked.Increment(ref _dashboardConnectionCount);
+    public void DecrementDashboardConnections() => Interlocked.Decrement(ref _dashboardConnectionCount);
+
+    protected bool IsAnyClientConnected() => _connectionCount > 0 || _dashboardConnectionCount > 0;
 }

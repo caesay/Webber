@@ -1,6 +1,7 @@
 import * as React from 'react';
 import styled from 'styled-components';
-import { withSubscription, type BaseDto } from './util';
+import { type BaseDto } from './util';
+import { useBlock } from './DashboardProvider';
 import { DateTime } from 'luxon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faClock } from '@fortawesome/free-solid-svg-icons';
@@ -39,7 +40,8 @@ interface ClockBlockDto extends BaseDto {
     timeZones: TimeZone[];
 }
 
-const ClockBlock: React.FunctionComponent<{ data: ClockBlockDto }> = ({ data }) => {
+const ClockBlock: React.FunctionComponent = () => {
+    const { data } = useBlock<ClockBlockDto>("TimeBlock");
 
     const [time, setTime] = React.useState(DateTime.utc().toMillis());
 
@@ -47,6 +49,8 @@ const ClockBlock: React.FunctionComponent<{ data: ClockBlockDto }> = ({ data }) 
         const interval = setInterval(() => { setTime(DateTime.utc().toMillis()); }, 1000);
         return () => clearInterval(interval);
     }, []);
+
+    if (!data) return null;
 
     function getTimeString(offset: number): string {
         return DateTime.fromMillis(time).setZone(`UTC${offset >= 0 ? '+' : ''}${offset}`).toFormat("HH:mm");
@@ -76,4 +80,4 @@ const ClockBlock: React.FunctionComponent<{ data: ClockBlockDto }> = ({ data }) 
     );
 }
 
-export default withSubscription(ClockBlock, "TimeBlock");
+export default ClockBlock;

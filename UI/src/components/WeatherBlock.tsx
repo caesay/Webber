@@ -1,6 +1,7 @@
 import * as React from 'react';
 import styled from 'styled-components';
-import { withSubscription, type BaseDto, isTimeBetween } from './util';
+import { type BaseDto, isTimeBetween } from './util';
+import { useBlock } from './DashboardProvider';
 import { DateTime } from 'luxon';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCloud, faMoon, faSun } from '@fortawesome/free-solid-svg-icons';
@@ -49,7 +50,10 @@ const SunsetDimmer = styled.div`
     background-color: rgba(0,0,0,0.4);
 `;
 
-const WeatherBlock: React.FunctionComponent<{ data: WeatherBlockDto }> = ({ data }) => {
+const WeatherBlock: React.FunctionComponent = () => {
+    const { data } = useBlock<WeatherBlockDto>("WeatherBlock");
+    if (!data) return null;
+
     const sunriseTime = DateTime.fromFormat(data.sunriseTime, "HH:mm", { zone: 'utc' })
         .setZone(`UTC${data.localOffsetHours >= 0 ? '+' : ''}${data.localOffsetHours}`)
         .toFormat("HH:mm");
@@ -73,4 +77,4 @@ const WeatherBlock: React.FunctionComponent<{ data: WeatherBlockDto }> = ({ data
     );
 };
 
-export default withSubscription(WeatherBlock, "WeatherBlock");
+export default WeatherBlock;
