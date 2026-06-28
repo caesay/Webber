@@ -19,7 +19,7 @@ public abstract class SimpleBlockServerBase<TDto> : BlockServerBase<TDto>
 
     protected abstract TDto Tick();
 
-    protected virtual bool ShouldTick() => IsAnyClientConnected();
+    protected virtual bool ShouldTick() => LastUpdate == null || IsAnyClientConnected();
 
     public override void Start(CancellationToken cancellationToken = default)
     {
