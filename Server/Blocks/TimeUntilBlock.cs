@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Calendar.v3;
 using Google.Apis.Calendar.v3.Data;
@@ -44,6 +45,9 @@ class TimeUntilBlockConfig
 
     /// <summary> The number of days in advance special events should appear on your calendar. </summary>
     public int SpecialAnnualDefaultLeadTimeDays { get; set; } = 14;
+
+    /// <summary> A list of regex patterns. Events whose summary matches any pattern will be excluded. </summary>
+    public string[] ExcludeEventPatterns { get; set; } = Array.Empty<string>();
 }
 
 internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
@@ -54,6 +58,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
 
     private readonly TimeUntilBlockConfig _config;
     private readonly ILogger<TimeUntilBlockServer> _log;
+    private readonly Lazy<Regex[]> _excludePatterns;
     private CalendarService _svc;
 
     public TimeUntilBlockServer(IServiceProvider sp, ILogger<TimeUntilBlockServer> log, TimeUntilBlockConfig config)
@@ -61,6 +66,10 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
     {
         this._config = config;
         this._log = log;
+        this._excludePatterns = new Lazy<Regex[]>(() =>
+            config.ExcludeEventPatterns
+                .Select(p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.Compiled))
+                .ToArray());
     }
 
     private async Task<UserCredential> DoGoogleAuth()
@@ -188,6 +197,10 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
             .OrderBy(i => i.StartTimeUtc)
             .Distinct()
             .ToList();
+
+        // Filter out events matching exclude patterns
+        if (_excludePatterns.Value.Length > 0)
+            allCandidates.RemoveAll(e => _excludePatterns.Value.Any(r => r.IsMatch(e.DisplayName)));
 
         // Add sleep synthetic event
         if (_config.SleepTime.HasValue)
