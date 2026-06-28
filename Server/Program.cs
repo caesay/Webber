@@ -1,4 +1,3 @@
-﻿using Topshelf;
 using Webber.Server;
 
 var envDocker = Environment.GetEnvironmentVariable("WEBBER_DOCKER");
@@ -13,27 +12,17 @@ if (!string.IsNullOrEmpty(envDocker))
     return svc.StartAndBlock();
 }
 
-
 if (args.Length == 2 && args[0] == "--debug")
 {
     var svc = new WebberService(args[1]);
     return svc.StartAndBlock();
 }
 
-string configPath = null;
-
-return (int)HostFactory.Run(host =>
+if (args.Length == 2 && args[0] == "--config")
 {
-    host.AddPersistedCommandLineArgument("config", c => configPath = c);
-    host.Service<WebberService>((d) => new WebberService(configPath));
-    host.SetServiceName("WebberServer");
-    host.SetDisplayName("WebberServer");
-    host.SetDescription("A local signalr service for webber client dashboards");
-    host.EnableShutdown();
-    host.EnableServiceRecovery(r =>
-    {
-        r.RestartService(0); // try to restart immediately
-        r.RestartService(1); // then, try to restart after one minute
-        r.RestartService(10); // then, try to restart the service every 10 minutes after that
-    });
-});
+    var svc = new WebberService(args[1]);
+    return svc.StartAndBlock();
+}
+
+Console.Error.WriteLine("Usage: Webber --config <path>");
+return 1;

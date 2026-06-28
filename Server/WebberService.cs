@@ -2,7 +2,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Newtonsoft.Json.Linq;
-using Topshelf;
 using Webber.Server.Blocks;
 using Webber.Server.Services;
 
@@ -17,7 +16,7 @@ public class AppConfig
     public bool DisableCaching { get; init; }
 }
 
-class WebberService : ServiceControl
+class WebberService
 {
     private readonly string _configPath;
     private WebApplication app;
@@ -107,25 +106,10 @@ class WebberService : ServiceControl
         }
     }
 
-    public bool Start(HostControl hostControl)
-    {
-        Init();
-        app.Start();
-        return true;
-    }
-
     public int StartAndBlock()
     {
         Init();
         app.Run();
         return 0;
-    }
-
-
-    public bool Stop(HostControl hostControl)
-    {
-        _cts.Cancel();
-        app.StopAsync().Wait();
-        return true;
     }
 }
