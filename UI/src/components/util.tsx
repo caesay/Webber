@@ -1,35 +1,9 @@
-import _ from 'lodash';
-import * as React from 'react';
-import styled from 'styled-components';
-import { HubConnectionBuilder, HubConnection, IRetryPolicy, RetryContext } from '@microsoft/signalr';
-import currentVersion from "../version";
-import moment from 'moment';
+import { useState, useEffect, useRef, type ComponentType } from 'react';
+import { HubConnectionBuilder, HubConnection, type IRetryPolicy, type RetryContext } from '@microsoft/signalr';
+import { DateTime } from 'luxon';
+import currentVersion from '../version';
 
-const ErrorOverlay = styled.div`
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    background-color: rgba(127,0,0,0.7);
-    color: white;
-    padding: 20px;
-    border: 2px solid black;
-    font-size: 20px;
-    overflow: hidden;
-    font-weight: bold;
-`;
-
-async function setStateAsync<P, S, K extends keyof S>(
-    component: React.Component<P, S>,
-    state:
-        ((prevState: Readonly<S>, props: Readonly<P>) => (Pick<S, K> | S | null)) |
-        Pick<S, K> |
-        S |
-        null
-) {
-    return new Promise(resolve => component.setState(state, resolve as any));
-}
+// --- Interfaces ---
 
 export interface BaseDto {
     localOffsetHours: number;
@@ -37,96 +11,145 @@ export interface BaseDto {
     serverVersion: string;
 }
 
-export function withSubscription<TDto extends BaseDto>(WrappedComponent: (React.ComponentType<{ data: TDto }>), hubName: string) {
-    interface BlockPanelBaseState {
-        lastUpdate?: TDto;
-        errorMessage?: string;
-        reconnectingDelay?: any;
-    }
-    class InfiniteRetryPolicy implements IRetryPolicy {
-        nextRetryDelayInMilliseconds(retryContext: RetryContext): number {
-            if (retryContext.previousRetryCount < 3)
-                return 2000;
-            if (retryContext.previousRetryCount < 10)
-                return 10000;
-            return 30000;
-        }
-    }
-    return class BlockPanelBase extends React.Component<{}, BlockPanelBaseState>
-    {
-        connection: HubConnection = null;
+// --- InfiniteRetryPolicy ---
 
-        constructor(props: {}) {
-            super(props);
-            this.state = {};
-        }
-
-        componentDidMount = () => {
-            this.connect();
-        }
-
-        connect = async () => {
-            if (this.connection) {
-                try { await this.connection.stop(); } catch { }
-                this.connection = null;
-            }
-
-            try {
-                this.connection = new HubConnectionBuilder()
-                    .withUrl(window.location.protocol + '//' + window.location.host + '/hub/' + hubName)
-                    .withAutomaticReconnect(new InfiniteRetryPolicy())
-                    .build();
-
-                this.connection.on('Update', this.onUpdateReceived);
-                this.connection.onreconnecting(this.onReconnecting);
-                this.connection.onreconnected(this.onReconnected);
-                await this.connection.start();
-                await setStateAsync(this, { errorMessage: "" });
-            } catch (e) {
-                if (_.isError(e)) {
-                    await setStateAsync(this, { errorMessage: "Failed to connect: " + e.message });
-                } else {
-                    await setStateAsync(this, { errorMessage: "Failed to connect: " + e });
-                }
-                setTimeout(this.connect, 10000);
-            }
-        }
-
-        onReconnecting = (e: Error) => {
-
-            var timeoutHandle = setTimeout(() => {
-                this.setState({ reconnectingDelay: null });
-            }, 10000);
-
-            this.setState((prevState) => ({ errorMessage: "Reconnecting: " + e.message, reconnectingDelay: timeoutHandle }));
-        }
-
-        onReconnected = (connectionId: string) => {
-            this.setState((prevState) => { 
-                clearTimeout(prevState.reconnectingDelay);
-                return { reconnectingDelay: null };
-            });
-        }
-
-        onUpdateReceived = (dto: TDto) => {
-            if (currentVersion != "local" && currentVersion != dto.serverVersion) {
-                window.location.reload();
-            }
-            this.setState({ lastUpdate: dto, errorMessage: dto.errorMessage });
-        }
-
-        render() {
-            const { lastUpdate, errorMessage, reconnectingDelay } = this.state;
-
-            return (
-                <React.Fragment>
-                    {!_.isEmpty(lastUpdate) && <WrappedComponent data={lastUpdate} />}
-                    {!_.isEmpty(errorMessage) && !reconnectingDelay && <ErrorOverlay onClick={this.connect}>{errorMessage}</ErrorOverlay>}
-                </React.Fragment>
-            );
-        }
+class InfiniteRetryPolicy implements IRetryPolicy {
+    nextRetryDelayInMilliseconds(retryContext: RetryContext): number | null {
+        if (retryContext.previousRetryCount < 3) return 2000;
+        if (retryContext.previousRetryCount < 10) return 10000;
+        return 30000;
     }
 }
+
+// --- ErrorOverlay ---
+
+function ErrorOverlay({ message }: { message: string }) {
+    return (
+        <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(200, 0, 0, 0.85)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            zIndex: 9999,
+            fontSize: '1.2rem',
+        }}>
+            {message}
+        </div>
+    );
+}
+
+// --- useSubscription Hook ---
+
+export function useSubscription<TDto extends BaseDto>(hubName: string): { data: TDto | null; errorMessage: string | null } {
+    const [data, setData] = useState<TDto | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const connectionRef = useRef<HubConnection | null>(null);
+    const reconnectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const url = window.location.protocol + '//' + window.location.host + '/hub/' + hubName;
+
+        const connection = new HubConnectionBuilder()
+            .withUrl(url)
+            .withAutomaticReconnect(new InfiniteRetryPolicy())
+            .build();
+
+        connectionRef.current = connection;
+
+        connection.on('Update', (dto: TDto) => {
+            // Check server version mismatch
+            if (currentVersion !== 'local' && dto.serverVersion && dto.serverVersion !== currentVersion) {
+                window.location.reload();
+                return;
+            }
+
+            // Clear any reconnecting error
+            if (reconnectingTimerRef.current) {
+                clearTimeout(reconnectingTimerRef.current);
+                reconnectingTimerRef.current = null;
+            }
+            setErrorMessage(null);
+
+            // Set error from DTO or set data
+            if (dto.errorMessage) {
+                setErrorMessage(dto.errorMessage);
+            } else {
+                setErrorMessage(null);
+            }
+            setData(dto);
+        });
+
+        connection.onreconnecting(() => {
+            // Delay showing error by 10 seconds
+            reconnectingTimerRef.current = setTimeout(() => {
+                setErrorMessage('Reconnecting...');
+            }, 10000);
+        });
+
+        connection.onreconnected(() => {
+            if (reconnectingTimerRef.current) {
+                clearTimeout(reconnectingTimerRef.current);
+                reconnectingTimerRef.current = null;
+            }
+            setErrorMessage(null);
+        });
+
+        connection.onclose(() => {
+            setErrorMessage('Connection lost.');
+        });
+
+        connection.start().catch((err) => {
+            setErrorMessage('Failed to connect: ' + (err instanceof Error ? err.message : String(err)));
+        });
+
+        return () => {
+            if (reconnectingTimerRef.current) {
+                clearTimeout(reconnectingTimerRef.current);
+            }
+            connection.stop();
+        };
+    }, [hubName]);
+
+    return { data, errorMessage };
+}
+
+// --- withSubscription HOC ---
+
+export function withSubscription<TDto extends BaseDto>(
+    WrappedComponent: ComponentType<{ data: TDto }>,
+    hubName: string
+): ComponentType {
+    function WithSubscriptionWrapper() {
+        const { data, errorMessage } = useSubscription<TDto>(hubName);
+
+        if (errorMessage && !data) {
+            return <ErrorOverlay message={errorMessage} />;
+        }
+
+        if (!data) {
+            return null;
+        }
+
+        return (
+            <>
+                {errorMessage && <ErrorOverlay message={errorMessage} />}
+                <WrappedComponent data={data} />
+            </>
+        );
+    }
+
+    WithSubscriptionWrapper.displayName = `withSubscription(${WrappedComponent.displayName || WrappedComponent.name || 'Component'})`;
+    return WithSubscriptionWrapper;
+}
+
+// --- Utility Functions ---
 
 export function round2places(num: number): number {
     return Math.round((num + Number.EPSILON) * 100) / 100;
@@ -134,10 +157,8 @@ export function round2places(num: number): number {
 
 export function roundStrAuto(num: number): string {
     num = round2places(num);
-    if (num > 100)
-        return Math.round(num).toFixed(0);
-    return (Math.round((num + Number.EPSILON) * 10) / 10).toFixed(1)
-    // return (Math.round((num + Number.EPSILON) * 100) / 100).toFixed(2);
+    if (num > 100) return Math.round(num).toFixed(0);
+    return (Math.round((num + Number.EPSILON) * 10) / 10).toFixed(1);
 }
 
 export function formatBytes(bytes: number, div: number = 1024): string {
@@ -147,12 +168,11 @@ export function formatBytes(bytes: number, div: number = 1024): string {
     return roundStrAuto(bytes / (div * div * div)) + " gb";
 }
 
-export function isTimeBetween(time, start, end): boolean {
-    if (_.isString(time)) time = moment(time, ['h:m a', 'H:m']);
-    if (_.isString(start)) start = moment(start, ['h:m a', 'H:m']);
-    if (_.isString(end)) end = moment(end, ['h:m a', 'H:m']);
+// --- Time Utility ---
 
-    const c1 = time.diff(start);
-    const c2 = time.diff(end);
-    return c1 > 0 && c2 < 0;
+export function isTimeBetween(time: DateTime | string, start: string, end: string): boolean {
+    const t = typeof time === 'string' ? DateTime.fromFormat(time, 'H:mm') : time;
+    const s = DateTime.fromFormat(start, 'H:mm');
+    const e = DateTime.fromFormat(end, 'H:mm');
+    return t > s && t < e;
 }

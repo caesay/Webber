@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { withSubscription, BaseDto, isTimeBetween } from './util';
-import styled from "styled-components";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCloud, faMoon, faSun, faSunPlantWilt } from '@fortawesome/free-solid-svg-icons'
-import moment from 'moment';
+import styled from 'styled-components';
+import { withSubscription, type BaseDto, isTimeBetween } from './util';
+import { DateTime } from 'luxon';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCloud, faMoon, faSun } from '@fortawesome/free-solid-svg-icons';
 
 interface WeatherBlockDto extends BaseDto {
     curTemperature: number;
@@ -47,26 +47,30 @@ const SunsetDimmer = styled.div`
     z-index: 1000;
     bottom: 0;
     background-color: rgba(0,0,0,0.4);
-`
+`;
 
 const WeatherBlock: React.FunctionComponent<{ data: WeatherBlockDto }> = ({ data }) => {
-    const sunriseTime = moment.utc(data.sunriseTime, "HH:mm").utcOffset(data.localOffsetHours).format("HH:mm");
-    const sunsetTime = moment.utc(data.sunsetTime, "HH:mm").utcOffset(data.localOffsetHours).format("HH:mm");
-    const shouldDim = !isTimeBetween(moment(), sunriseTime, sunsetTime);
+    const sunriseTime = DateTime.fromFormat(data.sunriseTime, "HH:mm", { zone: 'utc' })
+        .setZone(`UTC${data.localOffsetHours >= 0 ? '+' : ''}${data.localOffsetHours}`)
+        .toFormat("HH:mm");
+    const sunsetTime = DateTime.fromFormat(data.sunsetTime, "HH:mm", { zone: 'utc' })
+        .setZone(`UTC${data.localOffsetHours >= 0 ? '+' : ''}${data.localOffsetHours}`)
+        .toFormat("HH:mm");
+    const shouldDim = !isTimeBetween(DateTime.now(), sunriseTime, sunsetTime);
 
     return (
         <React.Fragment>
-            <FontAwesomeIcon icon={faCloud} style={{ fontSize: 40, marginBottom: 18, color: "#548BAB" }} />
+            <FontAwesomeIcon icon={faCloud} style={{ fontSize: 40, marginBottom: 18, marginLeft: -2, color: "#548BAB" }} />
             <SunriseContainer>
                 <FontAwesomeIcon icon={faSun} style={{ paddingRight: 10, color: "#EDBF24" }} />
                 <span>{sunriseTime}</span>
                 <FontAwesomeIcon icon={faMoon} style={{ paddingLeft: 20, paddingRight: 10, fontSize: 30, color: "#548BAB" }} />
                 <span>{sunsetTime}</span>
             </SunriseContainer>
-            <CurrentWeatherLabel style={{ color: data.curTemperatureColor }}>{data.curTemperature.toFixed(1)}°C</CurrentWeatherLabel>
+            <CurrentWeatherLabel style={{ color: data.curTemperatureColor }}>{data.curTemperature.toFixed(1)}&deg;C</CurrentWeatherLabel>
             {shouldDim && <SunsetDimmer />}
         </React.Fragment>
     );
-}
+};
 
 export default withSubscription(WeatherBlock, "WeatherBlock");

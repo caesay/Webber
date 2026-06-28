@@ -1,7 +1,6 @@
-import * as React from 'react';
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { withSubscription, BaseDto } from './util';
+import { withSubscription, type BaseDto } from './util';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMicrochip, faBolt, faImage, faMemory, faPlug } from '@fortawesome/free-solid-svg-icons';
 
@@ -247,7 +246,8 @@ const UtilizationGraphBar: React.FC<UtilizationGraphBarProps> = ({ utilization, 
                             fontSize: FULL_HEIGHT_ICON_SIZE,
                             zIndex: 1,
                             opacity: 0.6,
-                            marginBottom: 6
+                            marginBottom: 6,
+                            marginLeft: -2
                         }}
                     />
                     <span style={{ position: 'relative', zIndex: 1, fontSize: FULL_HEIGHT_FONT_SIZE }}>
@@ -260,7 +260,7 @@ const UtilizationGraphBar: React.FC<UtilizationGraphBarProps> = ({ utilization, 
                         icon={icon}
                         style={{
                             position: 'absolute',
-                            left: 6,
+                            left: 4,
                             top: '50%',
                             transform: 'translateY(-50%)',
                             fontSize: STAT_BAR_ICON_SIZE,
@@ -374,7 +374,7 @@ const PowerGraphBar: React.FC<PowerGraphBarProps> = ({ watts, timestamp }) => {
                 icon={faBolt}
                 style={{
                     position: 'absolute',
-                    left: 6,
+                    left: 4,
                     top: '50%',
                     transform: 'translateY(-50%)',
                     fontSize: STAT_BAR_ICON_SIZE,
@@ -471,7 +471,7 @@ const ComputerStatsBlock: React.FunctionComponent<{ data: ComputerStatsBlockDto 
                         <ComputerSection key={idx}>
                             <NameLabel>{computer.name}</NameLabel>
                             <OfflineCard>
-                                <FontAwesomeIcon icon={faPlug} color="#ff00007e" size="lg" />
+                                <FontAwesomeIcon icon={faPlug} color="#ff00007e" size="lg" style={{ marginLeft: -2 }} />
                                 <span>
                                     Offline
                                     {computer.powerConsumptionWatts != null &&

@@ -1,30 +1,27 @@
-import * as _ from 'lodash';
 import * as React from 'react';
 import { useEffect, useState } from 'react';
-import { withSubscription, BaseDto, isTimeBetween } from './util';
-import { Textfit } from 'react-textfit';
+import { withSubscription, type BaseDto, isTimeBetween } from './util';
+import { TextFit } from './TextFit';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCalendarAlt, faCalendarDay, faCalendarDays, faCalendarWeek, faCaretRight } from '@fortawesome/free-solid-svg-icons'
-import moment from 'moment';
+import { faCalendarDays, faCalendarWeek, faCaretRight } from '@fortawesome/free-solid-svg-icons'
+import { DateTime } from 'luxon';
 
-moment.locale('en', {
-    relativeTime: {
-        future: 'in %s',
-        past: '%s ago',
-        s: 'NOW',
-        ss: 'NOW',
-        m: '%dm',
-        mm: '%dm',
-        h: '%dh',
-        hh: '%dh',
-        d: '%dd',
-        dd: '%dd',
-        M: '%dM',
-        MM: '%dM',
-        y: '%dY',
-        yy: '%dY'
+function formatRelative(dt: DateTime, withWrapper: boolean = true): string {
+    const diff = dt.diff(DateTime.now(), ['days', 'hours', 'minutes', 'seconds']);
+    const totalSeconds = diff.as('seconds');
+    if (Math.abs(totalSeconds) < 60) return 'NOW';
+    const absDays = Math.abs(Math.floor(diff.as('days')));
+    const absHours = Math.abs(Math.floor(diff.as('hours')));
+    const absMinutes = Math.abs(Math.floor(diff.as('minutes')));
+    if (!withWrapper) {
+        if (absDays > 0) return absDays + 'd';
+        if (absHours > 0) return absHours + 'h';
+        return absMinutes + 'm';
     }
-});
+    if (absDays > 0) return (totalSeconds < 0 ? '' : 'in ') + absDays + 'd' + (totalSeconds < 0 ? ' ago' : '');
+    if (absHours > 0) return (totalSeconds < 0 ? '' : 'in ') + absHours + 'h' + (totalSeconds < 0 ? ' ago' : '');
+    return (totalSeconds < 0 ? '' : 'in ') + absMinutes + 'm' + (totalSeconds < 0 ? ' ago' : '');
+}
 
 interface CalendarEvent {
     displayName: string;
@@ -43,13 +40,13 @@ interface TimeUntilBlockDto extends BaseDto {
 
 function getTimeString(e: CalendarEvent, alt: boolean) {
 
-    const dstart = moment(e.startTimeUtc);
-    const dend = moment(e.endTimeUtc);
-    const secondsUntil = dstart.diff(moment()) / 1000;
+    const dstart = DateTime.fromISO(e.startTimeUtc);
+    const dend = DateTime.fromISO(e.endTimeUtc);
+    const secondsUntil = dstart.diff(DateTime.now()).as('seconds');
 
     let momentStr = e.hasStarted
-        ? dstart.fromNow(false)
-        : dstart.fromNow(!e.isNextUp);
+        ? formatRelative(dstart, true)
+        : formatRelative(dstart, e.isNextUp);
 
     if (secondsUntil > 0 && secondsUntil < 60) {
         momentStr = "in " + secondsUntil.toFixed(0).toString();
@@ -76,10 +73,10 @@ function getTimeString(e: CalendarEvent, alt: boolean) {
             opacity = 0.8;
         }
         if (secondsUntil < 345600) { // less than 4 days until event
-            momentStr = dstart.format("dddd").substring(0, 3).toUpperCase();
-            const diff = dend.diff(dstart);
+            momentStr = dstart.toFormat("ccc").toUpperCase();
+            const diff = dend.diff(dstart).as('milliseconds');
             if (diff > 90000000) { // event is longer than 25 hours
-                momentStr += "~" + dend.format("dddd").substring(0, 3).toUpperCase();
+                momentStr += "~" + dend.toFormat("ccc").toUpperCase();
             }
         }
     }
@@ -115,17 +112,17 @@ var audioNow = new Audio('/now.mp3');
 const TimeUntilBlock: React.FunctionComponent<{ data: TimeUntilBlockDto }> = ({ data }) => {
     const [warn, setWarn] = useState<string>();
     const [now, setNow] = useState<string>();
-    const [until, setUntil] = useState<number>();
-    const [alt, setAlt] = useState<boolean>();
+    const [_until, setUntil] = useState<number>();
+    const [alt, setAlt] = useState<boolean>(false);
 
     useEffect(() => {
         const id = setInterval(() => {
-            const nowTime = moment();
+            const nowTime = DateTime.now();
             const nextIdx = data.regularEvents.findIndex(e => e.isNextUp);
             if (nextIdx >= 0) {
                 const evt = data.regularEvents[nextIdx];
 
-                const secondsUntil = Math.round(moment(evt.startTimeUtc).diff(nowTime) / 1000);
+                const secondsUntil = Math.round(DateTime.fromISO(evt.startTimeUtc).diff(nowTime).as('seconds'));
 
                 // force re-render each tick when approaching event start time and alternate caret color
                 if (secondsUntil <= 180 && secondsUntil >= -120) {
@@ -155,19 +152,19 @@ const TimeUntilBlock: React.FunctionComponent<{ data: TimeUntilBlockDto }> = ({ 
     return (
         <React.Fragment>
             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0 }}>
-                <FontAwesomeIcon icon={faCalendarWeek} style={{ fontSize: 40, marginBottom: 20, color: "#548BAB" }} />
-                {_.map(data.allDayEvents, (e, i) => (
-                    <div key={i} style={{ position: "absolute", width: 400, top: i * 34 + 59, height: 24, lineHeight: "24px" }}>
-                        <Textfit mode="single" max={24}>{getTimeString(e, alt)}</Textfit>
+                <FontAwesomeIcon icon={faCalendarWeek} style={{ fontSize: 40, marginBottom: 20, marginLeft: -7, color: "#548BAB" }} />
+                {data.allDayEvents.map((e, i) => (
+                    <div key={i} style={{ position: "absolute", width: 400, top: i * 34 + 59, height: 24, lineHeight: "24px", overflow: "visible" }}>
+                        <TextFit mode="single" max={24}>{getTimeString(e, alt!)}</TextFit>
                     </div>
                 ))}
             </div>
             <div style={{ position: "absolute", left: 420, top: 0, bottom: 0 }}>
-                <FontAwesomeIcon icon={faCalendarDays} style={{ fontSize: 40, marginBottom: 20, marginLeft: 46, color: "#548BAB" }} />
-                {_.map(data.regularEvents, (e, i) => (
-                    <div key={i} style={{ position: "absolute", left: 46, width: 400, top: i * 34 + 59, height: 24, lineHeight: "24px" }}>
+                <FontAwesomeIcon icon={faCalendarDays} style={{ fontSize: 40, marginBottom: 20, marginLeft: 39, color: "#548BAB" }} />
+                {data.regularEvents.map((e, i) => (
+                    <div key={i} style={{ position: "absolute", left: 46, width: 400, top: i * 34 + 59, height: 24, lineHeight: "24px", overflow: "visible" }}>
                         {e.isNextUp && <FontAwesomeIcon icon={faCaretRight} style={{ color: alt ? "yellow" : "red", fontSize: 60, position: "absolute", left: -60, top: -15, width: 60, textAlign: "center" }} />}
-                        <Textfit mode="single" max={24}>{getTimeString(e, alt)}</Textfit>
+                        <TextFit mode="single" max={24}>{getTimeString(e, alt!)}</TextFit>
                     </div>
                 ))}
             </div>
