@@ -5,6 +5,8 @@ namespace Webber.Server.Services;
 
 class ConfigWatcher
 {
+    private static readonly JsonDocumentOptions _jsonOptions = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+
     private readonly string _configPath;
     private readonly IEnumerable<IBlockServer> _blocks;
     private readonly ILogger<ConfigWatcher> _logger;
@@ -38,7 +40,7 @@ class ConfigWatcher
         try
         {
             var json = File.ReadAllText(_configPath);
-            using var doc = JsonDocument.Parse(json);
+            using var doc = JsonDocument.Parse(json, _jsonOptions);
             foreach (var block in _blocks)
             {
                 if (block.ConfigType == null) continue;
@@ -58,7 +60,7 @@ class ConfigWatcher
         try
         {
             var json = await File.ReadAllTextAsync(_configPath, appStopping);
-            using var doc = JsonDocument.Parse(json);
+            using var doc = JsonDocument.Parse(json, _jsonOptions);
 
             foreach (var block in _blocks)
             {
