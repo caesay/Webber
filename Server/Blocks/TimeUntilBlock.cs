@@ -25,6 +25,7 @@ class CalendarKeyConfig
     public string Id { get; set; }
     public string Color { get; set; }
     public bool Disabled { get; set; }
+    public bool BinLogic { get; set; }
 }
 
 class TimeUntilBlockConfig
@@ -144,9 +145,9 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
         });
     }
 
-    private List<(Event Event, string Color)> FetchEvents(int desiredRegularCount, int desiredAllDayCount)
+    private List<(Event Event, string Color, bool BinLogic)> FetchEvents(int desiredRegularCount, int desiredAllDayCount)
     {
-        var allEvents = new List<(Event Event, string Color)>();
+        var allEvents = new List<(Event Event, string Color, bool BinLogic)>();
         int windowSize = 30;
         int currentOffset = 0;
         int maxDaysAhead = 365;
@@ -171,7 +172,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
 
                 var items = request.Execute().Items;
                 foreach (var item in items)
-                    allEvents.Add((item, c.Color));
+                    allEvents.Add((item, c.Color, c.BinLogic));
             }
 
             int regularCount = allEvents.Count(e => e.Event.Start?.DateTimeDateTimeOffset != null);
@@ -228,6 +229,7 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
                 IsRecurring = i.Event.RecurringEventId != null,
                 IsAllDay = i.Event.Start?.DateTimeDateTimeOffset == null,
                 Color = i.Color ?? _config.DefaultColor,
+                IsBinLogic = i.BinLogic,
             })
             .OrderBy(i => i.StartTimeUtc)
             .Distinct()
@@ -292,8 +294,8 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
         var regularCandidates = allCandidates.Where(e => !e.IsAllDay).ToList();
         var allDayCandidates = allCandidates.Where(e => e.IsAllDay).ToList();
 
-        // Consolidate bin collection events in all-day list
-        var alldaygroup = allDayCandidates.GroupBy(d => d.StartTimeUtc);
+        // Consolidate bin collection events in all-day list (only from calendars with BinLogic enabled)
+        var alldaygroup = allDayCandidates.Where(e => e.IsBinLogic).GroupBy(d => d.StartTimeUtc);
         foreach (var c in alldaygroup)
         {
             var binsearch = "Bin Collection";
@@ -304,10 +306,18 @@ internal class TimeUntilBlockServer : SimpleBlockServerBase<TimeUntilBlockDto>
                     allDayCandidates.Remove(bv);
 
                 var name = string.Join(" & ", bindays.Select(v => v.DisplayName.Substring(0, v.DisplayName.Length - binsearch.Length)));
-                var binevent = new CalendarEvent { DisplayName = name + " Collection", IsAllDay = true, StartTimeUtc = bindays[0].StartTimeUtc, Color = bindays[0].Color ?? _config.DefaultColor };
+                var binevent = new CalendarEvent { DisplayName = name + " Collection", IsAllDay = true, StartTimeUtc = bindays[0].StartTimeUtc, Color = bindays[0].Color ?? _config.DefaultColor, IsBinLogic = true };
                 allDayCandidates.Add(binevent);
             }
         }
+        // After combining, keep only the earliest bin collection event
+        var firstBin = allDayCandidates
+            .Where(e => e.IsBinLogic && e.DisplayName.EndsWith("Collection"))
+            .OrderBy(e => e.StartTimeUtc)
+            .FirstOrDefault();
+        if (firstBin != null)
+            allDayCandidates.RemoveAll(e => e.IsBinLogic && e.DisplayName.EndsWith("Collection") && e != firstBin);
+
         allDayCandidates = allDayCandidates.OrderBy(i => i.StartTimeUtc).ToList();
 
         // Calculate HasStarted and IsNextUp for regular events

@@ -12,6 +12,7 @@ public record CalendarEvent
     public bool IsAllDay { get; set; }
     public bool SpecialEvent { get; set; }
     public string Color { get; set; }
+    internal bool IsBinLogic { get; set; }
 }
 
 public record TimeUntilBlockDto : BaseDto
