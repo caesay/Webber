@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type BaseDto, isTimeBetween } from './util';
 import { useBlock, useConnectionState } from './DashboardProvider';
 import { TextFit } from './TextFit';
@@ -12,9 +12,9 @@ function formatRelative(dt: DateTime, withWrapper: boolean = true): string {
     const diff = dt.diff(DateTime.now(), ['days', 'hours', 'minutes', 'seconds']);
     const totalSeconds = diff.as('seconds');
     if (Math.abs(totalSeconds) < 60) return 'NOW';
-    const absDays = Math.abs(Math.floor(diff.as('days')));
-    const absHours = Math.abs(Math.floor(diff.as('hours')));
-    const absMinutes = Math.abs(Math.floor(diff.as('minutes')));
+    const absDays = Math.abs(diff.days);
+    const absHours = Math.abs(diff.hours);
+    const absMinutes = Math.abs(diff.minutes);
     if (!withWrapper) {
         if (absDays > 0) return absDays + 'd';
         if (absHours > 0) return absHours + 'h';
@@ -90,10 +90,10 @@ function getTimeString(e: CalendarEvent, alt: boolean) {
     }
 
     const colorDot = e.color ? (
-        <span style={{ display: "inline-block", width: 6, height: 16, borderRadius: 3, backgroundColor: e.color, marginRight: 8, verticalAlign: "middle", position: "relative", top: -2 }} />
+        <span style={{ flexShrink: 0, width: 6, height: 16, borderRadius: 3, backgroundColor: e.color, position: "relative", top: 1 }} />
     ) : null;
 
-    const wrapLen = 50;
+    const wrapLen = e.color ? 45 : 50;
     let displayText = momentStr + " - " + e.displayName;
 
     if (displayText.length > wrapLen) {
@@ -104,12 +104,12 @@ function getTimeString(e: CalendarEvent, alt: boolean) {
             str2 = str2.substring(0, str1.length - 3) + "...";
         }
         return (
-            <div style={{ color, lineHeight: "16px" }}>{colorDot}<span style={{ opacity }}>{str1}<br />{str2}</span></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color, lineHeight: "16px" }}>{colorDot}<span style={{ opacity }}>{str1}<br />{str2}</span></div>
         );
     }
 
     return (
-        <span style={{ color }}>{colorDot}<span style={{ opacity }}>{momentStr} - {e.displayName}</span></span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color }}>{colorDot}<span style={{ opacity }}>{momentStr} - {e.displayName}</span></span>
     );
 }
 
@@ -120,8 +120,8 @@ const TimeUntilBlock: React.FunctionComponent = () => {
     const { data, error } = useBlock<TimeUntilBlockDto>("TimeUntilBlock");
     const connState = useConnectionState();
     const connectionDown = connState.isReconnecting || connState.message !== null;
-    const [warn, setWarn] = useState<string>();
-    const [now, setNow] = useState<string>();
+    const warnRef = useRef<string>(null);
+    const nowRef = useRef<string>(null);
     const [_until, setUntil] = useState<number>();
     const [alt, setAlt] = useState<boolean>(false);
 
@@ -142,16 +142,16 @@ const TimeUntilBlock: React.FunctionComponent = () => {
                 }
 
                 // play warning 3 minutes before meeting
-                if (secondsUntil > 30 && secondsUntil < 180 && warn != evt.displayName) {
-                    setWarn(evt.displayName);
+                if (secondsUntil > 30 && secondsUntil < 180 && warnRef.current != evt.displayName) {
+                    warnRef.current = evt.displayName;
                     if (isTimeBetween(nowTime, "8:00", "18:00")) {
                         audioSoon.play();
                     }
                 }
 
                 // play second warning 30 seconds before meeting
-                else if (secondsUntil <= 30 && now != evt.displayName) {
-                    setNow(evt.displayName);
+                else if (secondsUntil <= 30 && nowRef.current != evt.displayName) {
+                    nowRef.current = evt.displayName;
                     if (isTimeBetween(nowTime, "8:00", "18:00")) {
                         audioNow.play();
                     }
@@ -181,7 +181,7 @@ const TimeUntilBlock: React.FunctionComponent = () => {
                 </div>
                 {data.regularEvents.map((e, i) => (
                     <div key={i} style={{ position: "absolute", left: 46, width: 400, top: i * 34 + 59, height: 24, lineHeight: "24px", overflow: "visible" }}>
-                        {e.isNextUp && <FontAwesomeIcon icon={faCaretRight} style={{ color: alt ? "yellow" : "red", fontSize: 60, position: "absolute", left: -60, top: -17, width: 60, textAlign: "center" }} />}
+                        {e.isNextUp && <FontAwesomeIcon icon={faCaretRight} style={{ color: alt ? "yellow" : "red", fontSize: 60, position: "absolute", left: -60, top: -13, width: 60, textAlign: "center" }} />}
                         <TextFit mode="single" max={24}>{getTimeString(e, alt!)}</TextFit>
                     </div>
                 ))}
